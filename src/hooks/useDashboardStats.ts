@@ -1,0 +1,292 @@
+import { useMemo } from 'react';
+import { subMonths, isSameMonth, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval, format, getDay } from 'date-fns';
+import { useTradeStore } from './useTradeStore';
+
+export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 1) {
+    const { trades, stockPositions, cashBalance } = useTradeStore();
+
+    return useMemo(() => {
+        const now = new Date();
+        const twelveMonthsAgo = subMonths(now, 12);
+        const targetMonth = subMonths(now, monthOffset);
+
+        // Filter: Active (Closed) Trades for P&L
+        const closedTrades = trades.filter(t =>
+            t.status !== 'OPEN' && t.closeDate
+        );
+
+        // --- Account Overview (All Time) ---
+        const totalPnL = closedTrades.reduce((sum, t) => {
+            const premium = (t.premiumPrice || 0) * t.contracts * 100;
+            const cost = (t.closePrice || 0) * t.contracts * 100;
+            let tradePnl = 0;
+            if (t.strategy === 'Vert') {
+                tradePnl = premium + cost;
+            } else {
+                tradePnl = t.side === 'BUY' ? (cost - premium) : (premium - cost);
+            }
+            return sum + tradePnl;
+        }, 0) + stockPositions.filter(p => p.status === 'CLOSED').reduce((sum, p) => {
+            return sum + ((p.sellPrice || 0) - p.buyPrice) * p.quantity;
+        }, 0);
+
+        // --- Collateral & Account Value ---
+        const openTrades = trades.filter(t => t.status === 'OPEN');
+
+        const ccCollateral = openTrades.filter(t => t.type === 'Call').reduce((sum, t) => {
+            return sum + (t.strikePrice * 100 * t.contracts);
+        }, 0);
+
+        const cspCollateral = openTrades.filter(t => t.type === 'Put').reduce((sum, t) => {
+            return sum + (t.strikePrice * 100 * t.contracts);
+        }, 0);
+
+        const totalCollateral = ccCollateral + cspCollateral;
+
+        // Account Value = Cash Ledger Balance + Realized P&L
+        const accountValue = cashBalance + totalPnL;
+
+        // Available Cash = Account Value - Collateral
+        const availableCash = accountValue - totalCollateral;
+
+
+        const lastMonthTrades = closedTrades.filter(t =>
+            isSameMonth(parseISO(t.closeDate!), targetMonth)
+        );
+        const lastMonthStocks = stockPositions.filter(p =>
+            p.status === 'CLOSED' && isSameMonth(parseISO(p.closeDate!), targetMonth)
+        );
+
+        const lastMonthTradePnL = lastMonthTrades.reduce((sum, t) => {
+            const premium = (t.premiumPrice || 0) * t.contracts * 100;
+            const cost = (t.closePrice || 0) * t.contracts * 100;
+            let tradePnl = 0;
+            if (t.strategy === 'Vert') {
+                tradePnl = premium + cost;
+            } else {
+                tradePnl = t.side === 'BUY' ? (cost - premium) : (premium - cost);
+            }
+            return sum + tradePnl;
+        }, 0);
+
+        const lastMonthStockPnL = lastMonthStocks.reduce((sum, p) => {
+            return sum + ((p.sellPrice || 0) - p.buyPrice) * p.quantity;
+        }, 0);
+
+        const lastMonthPnL = lastMonthTradePnL + lastMonthStockPnL;
+
+        // --- Efficiency Stats (Last 12 Months) ---
+        const recentTrades = closedTrades.filter(t =>
+            new Date(t.closeDate!) >= twelveMonthsAgo
+        );
+
+        const calculateEfficiency = (tradeList: typeof trades) => {
+            if (tradeList.length === 0) return { avgReturn: 0, winRate: 0, count: 0 };
+            // Win Rate
+            const tradeWins = tradeList.filter(t => {
+                const premium = (t.premiumPrice || 0) * 100 * t.contracts;
+                const closeCost = (t.closePrice || 0) * 100 * t.contracts;
+                let pnl = 0;
+                if (t.strategy === 'Vert') {
+                    pnl = premium + closeCost;
+                } else {
+                    pnl = t.side === 'BUY' ? (closeCost - premium) : (premium - closeCost);
+                }
+                return pnl > 0;
+            }).length;
+
+            const stockWins = stockPositions.filter(p =>
+                p.status === 'CLOSED' && (p.sellPrice || 0) > p.buyPrice
+            ).length;
+
+            const totalClosed = tradeList.length + stockPositions.filter(p => p.status === 'CLOSED').length;
+            if (totalClosed === 0) return { avgReturn: 0, winRate: 0, count: 0 };
+
+            return {
+                count: totalClosed,
+                winRate: ((tradeWins + stockWins) / totalClosed) * 100
+            };
+        };
+
+        const calculateStats = (type: 'Put' | 'Call') => {
+            const typeTrades = recentTrades.filter(t => t.type === type);
+            if (typeTrades.length === 0) return { avgReturn: 0, winRate: 0, count: 0 };
+
+            const totalReturnPct = typeTrades.reduce((sum, t) => {
+                const premium = (t.premiumPrice || 0) * 100 * t.contracts;
+                const cost = (t.closePrice || 0) * 100 * t.contracts;
+                const pnl = t.side === 'BUY' ? (cost - premium) : (premium - cost);
+
+                // Capital at risk (Collateral)
+                // User formula: options profit / (strike * contracts * 100)
+                const collateral = t.strikePrice * 100 * t.contracts;
+                if (collateral === 0) return sum;
+                return sum + (pnl / collateral);
+            }, 0);
+
+            // Win Rate Logic reused
+            const { winRate } = calculateEfficiency(typeTrades);
+
+            return {
+                avgReturn: (totalReturnPct / typeTrades.length) * 100,
+                count: typeTrades.length,
+                winRate
+            };
+        };
+
+        const calculateWeeklyStats = () => {
+            const currentWeekStart = startOfWeek(subWeeks(now, weekOffset), { weekStartsOn: 1 });
+            const currentWeekEnd = endOfWeek(subWeeks(now, weekOffset), { weekStartsOn: 1 });
+            const prevWeekStart = startOfWeek(subWeeks(now, weekOffset + 1), { weekStartsOn: 1 });
+            const prevWeekEnd = endOfWeek(subWeeks(now, weekOffset + 1), { weekStartsOn: 1 });
+
+            const currentWeekTrades = closedTrades.filter(t =>
+                isWithinInterval(parseISO(t.closeDate!), { start: currentWeekStart, end: currentWeekEnd })
+            );
+            const currentWeekStocks = stockPositions.filter(p =>
+                p.status === 'CLOSED' && p.closeDate && isWithinInterval(parseISO(p.closeDate), { start: currentWeekStart, end: currentWeekEnd })
+            );
+
+            const prevWeekTrades = closedTrades.filter(t =>
+                isWithinInterval(parseISO(t.closeDate!), { start: prevWeekStart, end: prevWeekEnd })
+            );
+            const prevWeekStocks = stockPositions.filter(p =>
+                p.status === 'CLOSED' && p.closeDate && isWithinInterval(parseISO(p.closeDate), { start: prevWeekStart, end: prevWeekEnd })
+            );
+
+            const getPnL = (tradeList: typeof trades, stockList: typeof stockPositions) => {
+                const tradePnL = tradeList.reduce((sum, t) => {
+                    if (t.strategy === 'Vert') {
+                        return sum + ((t.premiumPrice * t.contracts * 100) + ((t.closePrice || 0) * t.contracts * 100));
+                    }
+                    return sum + (t.side === 'BUY'
+                        ? (((t.closePrice || 0) * t.contracts * 100) - (t.premiumPrice * t.contracts * 100))
+                        : ((t.premiumPrice * t.contracts * 100) - ((t.closePrice || 0) * t.contracts * 100)));
+                }, 0);
+                const stockPnL = stockList.reduce((sum, p) => {
+                    return sum + ((p.sellPrice || 0) - p.buyPrice) * p.quantity;
+                }, 0);
+                return tradePnL + stockPnL;
+            };
+
+            const currentWeekPnL = getPnL(currentWeekTrades, currentWeekStocks);
+            const prevWeekPnL = getPnL(prevWeekTrades, prevWeekStocks);
+
+            const winRateStats = (() => {
+                const wins = currentWeekTrades.filter(t => {
+                    let pnl = 0;
+                    if (t.strategy === 'Vert') {
+                        pnl = ((t.premiumPrice * t.contracts * 100) + ((t.closePrice || 0) * t.contracts * 100));
+                    } else {
+                        pnl = t.side === 'BUY'
+                            ? (((t.closePrice || 0) * t.contracts * 100) - (t.premiumPrice * t.contracts * 100))
+                            : ((t.premiumPrice * t.contracts * 100) - ((t.closePrice || 0) * t.contracts * 100));
+                    }
+                    return pnl > 0;
+                }).length + currentWeekStocks.filter(p => (p.sellPrice || 0) > p.buyPrice).length;
+
+                const total = currentWeekTrades.length + currentWeekStocks.length;
+                return total > 0 ? (wins / total) * 100 : 0;
+            })();
+
+            const overallWinRate = (() => {
+                const wins = closedTrades.filter(t => {
+                    let pnl = 0;
+                    if (t.strategy === 'Vert') {
+                        pnl = (t.premiumPrice + (t.closePrice || 0)) * t.contracts * 100;
+                    } else {
+                        pnl = t.side === 'BUY'
+                            ? (((t.closePrice || 0) * t.contracts * 100) - (t.premiumPrice * t.contracts * 100))
+                            : ((t.premiumPrice * t.contracts * 100) - ((t.closePrice || 0) * t.contracts * 100));
+                    }
+                    return pnl > 0;
+                }).length + stockPositions.filter(p => p.status === 'CLOSED' && (p.sellPrice || 0) > p.buyPrice).length;
+
+                const total = closedTrades.length + stockPositions.filter(p => p.status === 'CLOSED').length;
+                return total > 0 ? (wins / total) * 100 : 0;
+            })();
+
+            const dailyBreakdown = Array(7).fill(0).map((_, i) => ({
+                day: format(new Date(currentWeekStart.getTime() + (i * 24 * 60 * 60 * 1000)), 'EEE'),
+                pnl: 0,
+                count: 0,
+                date: format(new Date(currentWeekStart.getTime() + (i * 24 * 60 * 60 * 1000)), 'yyyy-MM-dd')
+            }));
+
+            currentWeekTrades.forEach(t => {
+                const dayIndex = getDay(parseISO(t.closeDate!));
+                const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+                if (adjustedIndex >= 0 && adjustedIndex < 7) {
+                    let pnl = 0;
+                    if (t.strategy === 'Vert') {
+                        pnl = (t.premiumPrice + (t.closePrice || 0)) * t.contracts * 100;
+                    } else {
+                        pnl = t.side === 'BUY'
+                            ? (((t.closePrice || 0) * t.contracts * 100) - (t.premiumPrice * t.contracts * 100))
+                            : ((t.premiumPrice * t.contracts * 100) - ((t.closePrice || 0) * t.contracts * 100));
+                    }
+                    dailyBreakdown[adjustedIndex].pnl += pnl;
+                    dailyBreakdown[adjustedIndex].count += 1;
+                }
+            });
+
+            currentWeekStocks.forEach(p => {
+                const dayIndex = getDay(parseISO(p.closeDate!));
+                const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+                if (adjustedIndex >= 0 && adjustedIndex < 7) {
+                    const pnl = ((p.sellPrice || 0) - p.buyPrice) * p.quantity;
+                    dailyBreakdown[adjustedIndex].pnl += pnl;
+                    dailyBreakdown[adjustedIndex].count += 1;
+                }
+            });
+
+            const tradingDays = dailyBreakdown.filter(d => d.count > 0).length;
+            const avgDailyPnL = tradingDays > 0 ? currentWeekPnL / tradingDays : 0;
+            const bestDay = Math.max(...dailyBreakdown.map(d => d.pnl));
+            const worstDay = Math.min(...dailyBreakdown.map(d => d.pnl));
+
+            return {
+                weekNumber: format(currentWeekStart, 'w'),
+                year: format(currentWeekStart, 'yyyy'),
+                currentWeekPnL,
+                prevWeekPnL,
+                winRate: winRateStats,
+                overallWinRate,
+                avgDailyPnL,
+                tradingDays,
+                dailyBreakdown,
+                bestDay: isFinite(bestDay) ? bestDay : 0,
+                worstDay: isFinite(worstDay) ? worstDay : 0,
+                transactions: [
+                    ...currentWeekTrades.map(t => ({ ...t, displayType: 'Option' })),
+                    ...currentWeekStocks.map(s => ({ ...s, displayType: 'Stock' }))
+                ].sort((a: any, b: any) => b.closeDate!.localeCompare(a.closeDate!))
+            };
+        };
+
+
+        return {
+            accountOverview: {
+                totalPnL,
+                accountValue,
+                availableCash,
+                totalCollateral,
+                ccCollateral,
+                cspCollateral
+            },
+            lastMonth: {
+                pnl: lastMonthPnL,
+                count: lastMonthTrades.length + lastMonthStocks.length,
+                trades: [
+                    ...lastMonthTrades.map(t => ({ ...t, displayType: 'Option' })),
+                    ...lastMonthStocks.map(s => ({ ...s, displayType: 'Stock' }))
+                ].sort((a: any, b: any) => b.closeDate!.localeCompare(a.closeDate!))
+            },
+            efficiency: {
+                csp: calculateStats('Put'),
+                cc: calculateStats('Call')
+            },
+            weekly: calculateWeeklyStats()
+        };
+    }, [trades, cashBalance, weekOffset, monthOffset]);
+}
