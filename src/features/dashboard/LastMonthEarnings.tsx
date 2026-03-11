@@ -107,7 +107,7 @@ export default function LastMonthEarnings({ pnl, count, trades = [], monthOffset
 
                                 return (
                                     <tr key={t.id || idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                        <td className="px-4 py-3 text-gray-500">{t.closeDate}</td>
+                                        <td className="px-4 py-3 text-gray-500">{t.openDate}</td>
                                         <td className="px-4 py-3 font-medium">{t.symbol}</td>
                                         <td className="px-4 py-3">
                                             <Badge variant="outline">{t.displayType === 'Stock' ? 'Shares' : (t.strategy === 'Vert' ? 'Vert' : t.strategy || t.type)}</Badge>

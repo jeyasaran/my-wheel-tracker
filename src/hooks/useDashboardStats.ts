@@ -51,10 +51,10 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
 
 
         const lastMonthTrades = closedTrades.filter(t =>
-            isSameMonth(parseISO(t.closeDate!), targetMonth)
+            isSameMonth(parseISO(t.openDate), targetMonth)
         );
         const lastMonthStocks = stockPositions.filter(p =>
-            p.status === 'CLOSED' && isSameMonth(parseISO(p.closeDate!), targetMonth)
+            p.status === 'CLOSED' && isSameMonth(parseISO(p.openDate), targetMonth)
         );
 
         const lastMonthTradePnL = lastMonthTrades.reduce((sum, t) => {
@@ -141,17 +141,17 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             const prevWeekEnd = endOfWeek(subWeeks(now, weekOffset + 1), { weekStartsOn: 1 });
 
             const currentWeekTrades = closedTrades.filter(t =>
-                isWithinInterval(parseISO(t.closeDate!), { start: currentWeekStart, end: currentWeekEnd })
+                isWithinInterval(parseISO(t.openDate), { start: currentWeekStart, end: currentWeekEnd })
             );
             const currentWeekStocks = stockPositions.filter(p =>
-                p.status === 'CLOSED' && p.closeDate && isWithinInterval(parseISO(p.closeDate), { start: currentWeekStart, end: currentWeekEnd })
+                p.status === 'CLOSED' && p.openDate && isWithinInterval(parseISO(p.openDate), { start: currentWeekStart, end: currentWeekEnd })
             );
 
             const prevWeekTrades = closedTrades.filter(t =>
-                isWithinInterval(parseISO(t.closeDate!), { start: prevWeekStart, end: prevWeekEnd })
+                isWithinInterval(parseISO(t.openDate), { start: prevWeekStart, end: prevWeekEnd })
             );
             const prevWeekStocks = stockPositions.filter(p =>
-                p.status === 'CLOSED' && p.closeDate && isWithinInterval(parseISO(p.closeDate), { start: prevWeekStart, end: prevWeekEnd })
+                p.status === 'CLOSED' && p.openDate && isWithinInterval(parseISO(p.openDate), { start: prevWeekStart, end: prevWeekEnd })
             );
 
             const getPnL = (tradeList: typeof trades, stockList: typeof stockPositions) => {
@@ -214,7 +214,7 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             }));
 
             currentWeekTrades.forEach(t => {
-                const dayIndex = getDay(parseISO(t.closeDate!));
+                const dayIndex = getDay(parseISO(t.openDate));
                 const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
                 if (adjustedIndex >= 0 && adjustedIndex < 7) {
                     let pnl = 0;
@@ -231,7 +231,7 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             });
 
             currentWeekStocks.forEach(p => {
-                const dayIndex = getDay(parseISO(p.closeDate!));
+                const dayIndex = getDay(parseISO(p.openDate));
                 const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
                 if (adjustedIndex >= 0 && adjustedIndex < 7) {
                     const pnl = ((p.sellPrice || 0) - p.buyPrice) * p.quantity;
@@ -280,7 +280,7 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
                 trades: [
                     ...lastMonthTrades.map(t => ({ ...t, displayType: 'Option' })),
                     ...lastMonthStocks.map(s => ({ ...s, displayType: 'Stock' }))
-                ].sort((a: any, b: any) => b.closeDate!.localeCompare(a.closeDate!))
+                ].sort((a: any, b: any) => b.openDate.localeCompare(a.openDate))
             },
             efficiency: {
                 csp: calculateStats('Put'),

@@ -58,11 +58,11 @@ export default function IncomeChart() {
         if (timeRange !== 'All Time') {
             const monthsMap: Record<string, number> = { '3 Months': 3, '6 Months': 6, '12 Months': 12 };
             const cutoffDate = subMonths(new Date(), monthsMap[timeRange]);
-            filtered = allClosed.filter(item => new Date(item.closeDate!) >= cutoffDate);
+            filtered = allClosed.filter(item => new Date(item.openDate) >= cutoffDate);
         }
 
         // 3. Sort by date
-        filtered.sort((a, b) => new Date(a.closeDate!).getTime() - new Date(b.closeDate!).getTime());
+        filtered.sort((a, b) => new Date(a.openDate).getTime() - new Date(b.openDate).getTime());
 
         if (filtered.length === 0) return [];
 
@@ -78,16 +78,16 @@ export default function IncomeChart() {
         }>();
 
         filtered.forEach(item => {
-            const closeDate = parseISO(item.closeDate!);
+            const openDate = parseISO(item.openDate);
             let key = '';
             let dateLabel = '';
 
             if (period === 'Weekly') {
-                const start = startOfWeek(closeDate);
+                const start = startOfWeek(openDate);
                 key = start.toISOString();
                 dateLabel = format(start, 'MMM d');
             } else {
-                const start = startOfMonth(closeDate);
+                const start = startOfMonth(openDate);
                 key = start.toISOString();
                 dateLabel = format(start, 'MMM yyyy');
             }
@@ -95,7 +95,7 @@ export default function IncomeChart() {
             if (!groupedData.has(key)) {
                 groupedData.set(key, {
                     date: dateLabel,
-                    dateObj: period === 'Weekly' ? startOfWeek(closeDate) : startOfMonth(closeDate),
+                    dateObj: period === 'Weekly' ? startOfWeek(openDate) : startOfMonth(openDate),
                     csp: 0,
                     cc: 0,
                     stocks: 0,

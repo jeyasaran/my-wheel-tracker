@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server/wheel_tracker.db:/app/wheel_tracker.db
+    environment:
+      - PORT=3001
+      - NODE_ENV=development
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_PROXY_TARGET=http://backend:3001
+    depends_on:
+      - backend

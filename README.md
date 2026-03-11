@@ -34,9 +34,55 @@ A clean, modular web application to track "Wheel Strategy" option trades (Cash S
 
 ### Running Locally
 
+You need to run **two processes** — the backend API server and the frontend dev server.
+
+### Option 2: Using Docker
+
+1. Ensure you have Docker and Docker Compose installed.
+2. Build and start the containers:
+   ```bash
+   docker-compose up --build
+   ```
+3. The app will be available at:
+   - Frontend: [http://localhost:5173](http://localhost:5173)
+   - Backend API: [http://localhost:3001](http://localhost:3001)
+
+The database is persisted in `./server/wheel_tracker.db`.
+
+### Option 3: Home Assistant Add-on (GitHub - Recommended)
+
+This is the easiest way to run and update the app on a Raspberry Pi:
+
+1.  **Create a private/public GitHub repo** and push this entire project to it.
+2.  In Home Assistant, go to **Settings > Add-ons > Add-on Store**.
+3.  Click the **three dots** (top right) > **Repositories**.
+4.  Add your GitHub URL and click **Add**.
+5.  Close the popup, search for **"Options Wheel Tracker"**, and click **Install**.
+6.  Go to the **Configuration** tab to set your `massive_api_key`.
+7.  **Start** the add-on!
+
+*Tip: Updates are handled automatically via GitHub. When you push new code to your repo, Home Assistant will show an "Update" button.*
+
+**1. Start the backend server** (Terminal 1):
+
+```bash
+npm run server
+```
+
+This installs server dependencies and starts the Express/SQLite API.
+
+**2. Start the frontend dev server** (Terminal 2):
+
 ```bash
 npm run dev
 ```
+
+This starts the Vite dev server at `http://localhost:5173`.
+
+| Terminal | Command         | Description                          |
+| -------- | --------------- | ------------------------------------ |
+| 1        | `npm run server` | Starts the Express backend (SQLite) |
+| 2        | `npm run dev`    | Starts the Vite frontend dev server |
 
 ### Building for Production
 

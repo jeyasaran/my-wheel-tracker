@@ -1,0 +1,8 @@
+node_modules
+dist
+.git
+.DS_Store
+server/node_modules
+server/wheel_tracker.db-journal
+server/wheel_tracker.db-shm
+server/wheel_tracker.db-wal

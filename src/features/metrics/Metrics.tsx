@@ -4,6 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCo
 import { subMonths, format, parseISO, startOfDay, differenceInDays, startOfYear, getUnixTime } from 'date-fns';
 import { Info, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import PositionPnLChart from './PositionPnLChart';
 
 type TimeRange = '1m' | '3m' | '6m' | 'ytd' | '12m' | 'all';
 
@@ -261,147 +262,154 @@ export default function Metrics() {
     const endDate = stats.chartData.length > 0 ? stats.chartData[stats.chartData.length - 1].date : '';
 
     return (
-        <div className="space-y-0 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white dark:bg-[#111318] rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm">
-            {/* === TOP METRICS === */}
-            <div className="px-6 pt-6 pb-5">
-                {/* Row 1: P&L label + RoR label */}
-                <div className="flex justify-between items-start mb-1">
-                    <span className="text-[13px] text-gray-500 dark:text-gray-400">Est. Total P&L</span>
-                    <div className="flex items-center gap-1.5 text-[13px] text-gray-500 dark:text-gray-400">
-                        <div className="w-3 h-0.5 bg-[#00bfff]"></div>
-                        <span>RoR(TWR)</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                        <Info className="w-3.5 h-3.5 text-gray-400" />
-                    </div>
-                </div>
-
-                {/* Row 2: P&L value + RoR value */}
-                <div className="flex justify-between items-end mb-5">
-                    <div className={cn("text-4xl font-bold tracking-tight", stats.finalPnl >= 0 ? "text-[#10b981]" : "text-red-500")}>
-                        {stats.finalPnl >= 0 ? '' : '-'}{Math.abs(stats.finalPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    <div className={cn("text-4xl font-bold tracking-tight", stats.totalReturnPct >= 0 ? "text-[#10b981]" : "text-red-500")}>
-                        {stats.totalReturnPct >= 0 ? '+' : ''}{stats.totalReturnPct.toFixed(2)}%
-                    </div>
-                </div>
-
-                {/* Row 3: Secondary metrics labels */}
-                <div className="flex justify-between items-start mb-1">
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-0.5 bg-[#f97316] flex-shrink-0"></div>
-                        <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-md px-2 py-0.5">
-                            <select className="bg-transparent text-[12px] text-gray-600 dark:text-gray-300 outline-none appearance-none cursor-pointer pr-3">
-                                <option>S&P 500</option>
-                            </select>
-                            <ChevronDown className="w-3 h-3 -ml-2 pointer-events-none text-gray-400 flex-shrink-0" />
+        <>
+            <div className="space-y-0 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white dark:bg-[#111318] rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm">
+                {/* === TOP METRICS === */}
+                <div className="px-6 pt-6 pb-5">
+                    {/* Row 1: P&L label + RoR label */}
+                    <div className="flex justify-between items-start mb-1">
+                        <span className="text-[13px] text-gray-500 dark:text-gray-400">Est. Total P&L</span>
+                        <div className="flex items-center gap-1.5 text-[13px] text-gray-500 dark:text-gray-400">
+                            <div className="w-3 h-0.5 bg-[#00bfff]"></div>
+                            <span>RoR(TWR)</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                            <Info className="w-3.5 h-3.5 text-gray-400" />
                         </div>
                     </div>
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                        Ann. RoR est
-                        <Info className="w-3 h-3 text-gray-400" />
+
+                    {/* Row 2: P&L value + RoR value */}
+                    <div className="flex justify-between items-end mb-5">
+                        <div className={cn("text-4xl font-bold tracking-tight", stats.finalPnl >= 0 ? "text-[#10b981]" : "text-red-500")}>
+                            {stats.finalPnl >= 0 ? '' : '-'}{Math.abs(stats.finalPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className={cn("text-4xl font-bold tracking-tight", stats.totalReturnPct >= 0 ? "text-[#10b981]" : "text-red-500")}>
+                            {stats.totalReturnPct >= 0 ? '+' : ''}{stats.totalReturnPct.toFixed(2)}%
+                        </div>
                     </div>
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400">Max. drawdown</div>
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400">Sharpe Ratio</div>
+
+                    {/* Row 3: Secondary metrics labels */}
+                    <div className="flex justify-between items-start mb-1">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-0.5 bg-[#f97316] flex-shrink-0"></div>
+                            <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-md px-2 py-0.5">
+                                <select className="bg-transparent text-[12px] text-gray-600 dark:text-gray-300 outline-none appearance-none cursor-pointer pr-3">
+                                    <option>S&P 500</option>
+                                </select>
+                                <ChevronDown className="w-3 h-3 -ml-2 pointer-events-none text-gray-400 flex-shrink-0" />
+                            </div>
+                        </div>
+                        <div className="text-[12px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                            Ann. RoR est
+                            <Info className="w-3 h-3 text-gray-400" />
+                        </div>
+                        <div className="text-[12px] text-gray-500 dark:text-gray-400">Max. drawdown</div>
+                        <div className="text-[12px] text-gray-500 dark:text-gray-400">Sharpe Ratio</div>
+                    </div>
+
+                    {/* Row 4: Secondary metrics values */}
+                    <div className="flex justify-between items-start">
+                        <div className={cn("text-[15px] font-semibold", stats.spyReturnPct >= 0 ? "text-[#10b981]" : "text-red-500")}>
+                            {stats.spyReturnPct >= 0 ? '+' : ''}{stats.spyReturnPct.toFixed(2)}%
+                        </div>
+                        <div className={cn("text-[15px] font-semibold", stats.annualizedRoR >= 0 ? "text-[#10b981]" : "text-red-500")}>
+                            {stats.annualizedRoR >= 0 ? '+' : ''}{stats.annualizedRoR.toFixed(2)}%
+                        </div>
+                        <div className="text-[15px] font-semibold text-gray-700 dark:text-gray-300">
+                            {stats.maxDrawdown >= 0 ? '' : '-'}{Math.abs(stats.maxDrawdown).toFixed(2)}%
+                        </div>
+                        <div className="text-[15px] font-semibold text-gray-700 dark:text-gray-300">
+                            {stats.sharpeRatio.toFixed(2)}
+                        </div>
+                    </div>
                 </div>
 
-                {/* Row 4: Secondary metrics values */}
-                <div className="flex justify-between items-start">
-                    <div className={cn("text-[15px] font-semibold", stats.spyReturnPct >= 0 ? "text-[#10b981]" : "text-red-500")}>
-                        {stats.spyReturnPct >= 0 ? '+' : ''}{stats.spyReturnPct.toFixed(2)}%
-                    </div>
-                    <div className={cn("text-[15px] font-semibold", stats.annualizedRoR >= 0 ? "text-[#10b981]" : "text-red-500")}>
-                        {stats.annualizedRoR >= 0 ? '+' : ''}{stats.annualizedRoR.toFixed(2)}%
-                    </div>
-                    <div className="text-[15px] font-semibold text-gray-700 dark:text-gray-300">
-                        {stats.maxDrawdown >= 0 ? '' : '-'}{Math.abs(stats.maxDrawdown).toFixed(2)}%
-                    </div>
-                    <div className="text-[15px] font-semibold text-gray-700 dark:text-gray-300">
-                        {stats.sharpeRatio.toFixed(2)}
-                    </div>
+                {/* === DIVIDER === */}
+                <div className="h-px bg-gray-100 dark:bg-gray-800" />
+
+                {/* === CHART === */}
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={stats.chartData} margin={{ top: 40, right: 30, left: 30, bottom: 10 }}>
+                            <defs>
+                                <linearGradient id="colorUserFill" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#00bfff" stopOpacity={0.25} />
+                                    <stop offset="100%" stopColor="#00bfff" stopOpacity={0.03} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid vertical={false} stroke="#f0f0f0" strokeDasharray="0" />
+                            <XAxis dataKey="date" hide={true} />
+                            <YAxis hide={true} domain={['auto', 'auto']} />
+                            <RechartsTooltip
+                                content={<CustomTooltip />}
+                                cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '4 4' }}
+                            />
+                            <Area
+                                type="linear"
+                                dataKey="spyReturns"
+                                stroke="#f97316"
+                                strokeWidth={1.5}
+                                fill="none"
+                                isAnimationActive={false}
+                                label={{
+                                    content: <CustomLabel
+                                        maxIdx={stats.spyMaxIdx}
+                                        minIdx={stats.spyMinIdx}
+                                        color="#f97316"
+                                    />
+                                }}
+                            />
+                            <Area
+                                type="linear"
+                                dataKey="userReturns"
+                                stroke="#00bfff"
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorUserFill)"
+                                isAnimationActive={false}
+                                label={{
+                                    content: <CustomLabel
+                                        maxIdx={stats.userMaxIdx}
+                                        minIdx={stats.userMinIdx}
+                                        color="#00bfff"
+                                    />
+                                }}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+
+                {/* === DIVIDER === */}
+                <div className="h-px bg-gray-100 dark:bg-gray-800" />
+
+                {/* === FOOTER: dates === */}
+                <div className="flex justify-between items-center px-6 py-3 text-[12px] text-gray-400 dark:text-gray-500">
+                    <span>{startDate}</span>
+                    <span>{endDate}</span>
+                </div>
+
+                {/* === TIME RANGE BUTTONS === */}
+                <div className="flex justify-center items-center gap-1 px-6 pb-5">
+                    {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map((r) => (
+                        <button
+                            key={r}
+                            onClick={() => setTimeRange(r)}
+                            className={cn(
+                                "px-4 py-1.5 text-xs rounded-full font-medium transition-all",
+                                timeRange === r
+                                    ? "bg-blue-600 text-white shadow"
+                                    : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            )}
+                        >
+                            {TIME_RANGE_LABELS[r]}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* === DIVIDER === */}
-            <div className="h-px bg-gray-100 dark:bg-gray-800" />
-
-            {/* === CHART === */}
-            <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats.chartData} margin={{ top: 40, right: 30, left: 30, bottom: 10 }}>
-                        <defs>
-                            <linearGradient id="colorUserFill" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#00bfff" stopOpacity={0.25} />
-                                <stop offset="100%" stopColor="#00bfff" stopOpacity={0.03} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid vertical={false} stroke="#f0f0f0" strokeDasharray="0" />
-                        <XAxis dataKey="date" hide={true} />
-                        <YAxis hide={true} domain={['auto', 'auto']} />
-                        <RechartsTooltip
-                            content={<CustomTooltip />}
-                            cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '4 4' }}
-                        />
-                        <Area
-                            type="linear"
-                            dataKey="spyReturns"
-                            stroke="#f97316"
-                            strokeWidth={1.5}
-                            fill="none"
-                            isAnimationActive={false}
-                            label={{
-                                content: <CustomLabel
-                                    maxIdx={stats.spyMaxIdx}
-                                    minIdx={stats.spyMinIdx}
-                                    color="#f97316"
-                                />
-                            }}
-                        />
-                        <Area
-                            type="linear"
-                            dataKey="userReturns"
-                            stroke="#00bfff"
-                            strokeWidth={2}
-                            fillOpacity={1}
-                            fill="url(#colorUserFill)"
-                            isAnimationActive={false}
-                            label={{
-                                content: <CustomLabel
-                                    maxIdx={stats.userMaxIdx}
-                                    minIdx={stats.userMinIdx}
-                                    color="#00bfff"
-                                />
-                            }}
-                        />
-                    </AreaChart>
-                </ResponsiveContainer>
+            {/* === POSITION P&L CHART === */}
+            <div className="mt-6">
+                <PositionPnLChart />
             </div>
-
-            {/* === DIVIDER === */}
-            <div className="h-px bg-gray-100 dark:bg-gray-800" />
-
-            {/* === FOOTER: dates === */}
-            <div className="flex justify-between items-center px-6 py-3 text-[12px] text-gray-400 dark:text-gray-500">
-                <span>{startDate}</span>
-                <span>{endDate}</span>
-            </div>
-
-            {/* === TIME RANGE BUTTONS === */}
-            <div className="flex justify-center items-center gap-1 px-6 pb-5">
-                {(Object.keys(TIME_RANGE_LABELS) as TimeRange[]).map((r) => (
-                    <button
-                        key={r}
-                        onClick={() => setTimeRange(r)}
-                        className={cn(
-                            "px-4 py-1.5 text-xs rounded-full font-medium transition-all",
-                            timeRange === r
-                                ? "bg-blue-600 text-white shadow"
-                                : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
-                        )}
-                    >
-                        {TIME_RANGE_LABELS[r]}
-                    </button>
-                ))}
-            </div>
-        </div>
+        </>
     );
 }

@@ -1,12 +1,18 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import db from './db.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the built frontend
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // --- Brokers ---
 app.get('/api/brokers', (req, res) => {
@@ -213,6 +219,48 @@ app.delete('/api/transactions', (req, res) => {
 });
 
 
+app.get('/api/stock-history', async (req, res) => {
+    const { symbol, period1, period2 } = req.query;
+    if (!symbol || !period1 || !period2) {
+        return res.status(400).json({ error: 'symbol, period1, and period2 are required' });
+    }
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'application/json',
+            }
+        });
+        if (!response.ok) {
+            return res.status(502).json({ error: `Yahoo Finance returned ${response.status}` });
+        }
+        const json = await response.json();
+        const result = json?.chart?.result?.[0];
+        if (!result) {
+            return res.status(502).json({ error: 'No data returned from Yahoo Finance' });
+        }
+
+        const timestamps = result.timestamp || [];
+        const closes = result.indicators?.quote?.[0]?.close || [];
+
+        const data = timestamps.map((ts, i) => {
+            const close = closes[i];
+            if (close == null) return null;
+            const date = new Date(ts * 1000);
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return { date: `${yyyy}-${mm}-${dd}`, close: Number(close.toFixed(2)) };
+        }).filter(Boolean);
+
+        res.json(data);
+    } catch (err) {
+        console.error(`Stock history fetch error for ${symbol}:`, err);
+        res.status(500).json({ error: 'Failed to fetch stock data' });
+    }
+});
+
 app.get('/api/spy-history', async (req, res) => {
     const { period1, period2 } = req.query;
     if (!period1 || !period2) {
@@ -266,6 +314,14 @@ app.get('/api/spy-history', async (req, res) => {
         console.error('SPY fetch error:', err);
         res.status(500).json({ error: 'Failed to fetch SPY data' });
     }
+});
+
+// Catch-all route for SPA: serve index.html for any request that doesn't match an API route
+app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'Not found' });
+    }
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(port, () => {

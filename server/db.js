@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dbPath = join(__dirname, 'wheel_tracker.db');
+const dbPath = process.env.DB_PATH || join(__dirname, 'wheel_tracker.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
