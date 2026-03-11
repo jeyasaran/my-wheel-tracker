@@ -1,6 +1,6 @@
 name: "Options Wheel Tracker"
 description: "A comprehensive tracker for Options Wheel Strategy and Long stock positions."
-version: "1.2.2"
+version: "1.2.3"
 slug: "options_wheel_tracker"
 init: false
 arch:
@@ -9,8 +9,7 @@ arch:
   - armv7
 ports:
   3001/tcp: 3001
-ingress: true
-ingress_port: 3001
+webui: http://[HOST]:[PORT:3001]/
 panel_icon: mdi:chart-line
 panel_title: "Wheel Tracker"
 map:
