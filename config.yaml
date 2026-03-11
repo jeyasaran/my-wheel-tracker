@@ -9,6 +9,8 @@ arch:
   - armv7
 ports:
   3001/tcp: 3001
+ingress: true
+ingress_port: 3001
 panel_icon: mdi:chart-line
 panel_title: "Wheel Tracker"
 map:
