@@ -132,7 +132,7 @@ export default function PositionPnLChart() {
                         const period1 = getUnixTime(startDate);
 
                         const response = await fetch(
-                            `http://localhost:3001/api/stock-history?symbol=${encodeURIComponent(group.symbol)}&period1=${period1}&period2=${period2}`
+                            `./api/stock-history?symbol=${encodeURIComponent(group.symbol)}&period1=${period1}&period2=${period2}`
                         );
                         if (response.ok) {
                             const data = await response.json();

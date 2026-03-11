@@ -55,10 +55,10 @@ export function TradeProvider({ children }: { children: ReactNode }) {
         try {
             setLoading(true);
             const [tradesRes, transRes, posRes, brokersRes] = await Promise.all([
-                fetch('/api/trades'),
-                fetch('/api/transactions'),
-                fetch('/api/positions'),
-                fetch('/api/brokers')
+                fetch('./api/trades'),
+                fetch('./api/transactions'),
+                fetch('./api/positions'),
+                fetch('./api/brokers')
             ]);
 
             const fetchedTrades = await tradesRes.json();
@@ -87,10 +87,10 @@ export function TradeProvider({ children }: { children: ReactNode }) {
                     window.localStorage.removeItem(brokersKey);
 
                     // Migrate Brokers first due to foreign keys
-                    for (const b of localBrokers) await fetch('/api/brokers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
-                    for (const t of localTrades) await fetch('/api/trades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
-                    for (const p of localPos) await fetch('/api/positions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
-                    for (const tr of localTrans) await fetch('/api/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tr) });
+                    for (const b of localBrokers) await fetch('./api/brokers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+                    for (const t of localTrades) await fetch('./api/trades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
+                    for (const p of localPos) await fetch('./api/positions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
+                    for (const tr of localTrans) await fetch('./api/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tr) });
 
                     migrationLock = false;
                     // Re-fetch now that migration is complete
@@ -140,7 +140,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
     const addTrade = async (trade: Trade) => {
         const newTrade = { ...trade, isArchived: false };
         try {
-            await fetch('/api/trades', {
+            await fetch('./api/trades', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newTrade)
@@ -153,7 +153,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const updateTrade = async (id: string, updates: Partial<Trade>) => {
         try {
-            await fetch(`/api/trades/${id}`, {
+            await fetch(`./api/trades/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
@@ -169,7 +169,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const deleteTrade = async (id: string) => {
         try {
-            await fetch(`/api/trades/${id}`, { method: 'DELETE' });
+            await fetch(`./api/trades/${id}`, { method: 'DELETE' });
             setTrades(prev => prev.filter(t => t.id !== id));
         } catch (error) {
             console.error('Error deleting trade', error);
@@ -180,10 +180,10 @@ export function TradeProvider({ children }: { children: ReactNode }) {
         try {
             // Clear DB
             await Promise.all([
-                fetch('/api/trades', { method: 'DELETE' }),
-                fetch('/api/positions/all', { method: 'DELETE' }).catch(() => { }), // We'll add these endpoints
-                fetch('/api/transactions/all', { method: 'DELETE' }).catch(() => { }),
-                fetch('/api/brokers/all', { method: 'DELETE' }).catch(() => { })
+                fetch('./api/trades', { method: 'DELETE' }),
+                fetch('./api/positions/all', { method: 'DELETE' }).catch(() => { }), // We'll add these endpoints
+                fetch('./api/transactions/all', { method: 'DELETE' }).catch(() => { }),
+                fetch('./api/brokers/all', { method: 'DELETE' }).catch(() => { })
             ]);
 
             // Clear localStorage
@@ -206,7 +206,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const addTransaction = async (transaction: CashTransaction) => {
         try {
-            await fetch('/api/transactions', {
+            await fetch('./api/transactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(transaction)
@@ -219,7 +219,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const deleteTransaction = async (id: string) => {
         try {
-            await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+            await fetch(`./api/transactions/${id}`, { method: 'DELETE' });
             setTransactions(prev => prev.filter(t => t.id !== id));
         } catch (error) {
             console.error('Error deleting transaction', error);
@@ -228,7 +228,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const addPosition = async (position: StockPosition) => {
         try {
-            await fetch('/api/positions', {
+            await fetch('./api/positions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(position)
@@ -241,7 +241,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const updatePosition = async (id: string, updates: Partial<StockPosition>) => {
         try {
-            await fetch(`/api/positions/${id}`, {
+            await fetch(`./api/positions/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
@@ -254,7 +254,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const deletePosition = async (id: string) => {
         try {
-            await fetch(`/api/positions/${id}`, { method: 'DELETE' });
+            await fetch(`./api/positions/${id}`, { method: 'DELETE' });
             setStockPositions(prev => prev.filter(p => p.id !== id));
         } catch (error) {
             console.error('Error deleting position', error);
@@ -267,7 +267,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const addBroker = async (broker: Broker) => {
         try {
-            await fetch('/api/brokers', {
+            await fetch('./api/brokers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(broker)
@@ -280,7 +280,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const updateBroker = async (id: string, updates: Partial<Broker>) => {
         try {
-            await fetch(`/api/brokers/${id}`, {
+            await fetch(`./api/brokers/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
@@ -293,7 +293,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const deleteBroker = async (id: string) => {
         try {
-            await fetch(`/api/brokers/${id}`, { method: 'DELETE' });
+            await fetch(`./api/brokers/${id}`, { method: 'DELETE' });
             setBrokers(prev => prev.filter(b => b.id !== id));
         } catch (error) {
             console.error('Error deleting broker', error);
