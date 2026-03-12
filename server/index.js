@@ -316,6 +316,35 @@ app.get('/api/spy-history', async (req, res) => {
     }
 });
 
+app.get('/api/current-price', async (req, res) => {
+    const { symbol } = req.query;
+    if (!symbol) {
+        return res.status(400).json({ error: 'symbol is required' });
+    }
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'application/json',
+            }
+        });
+        if (!response.ok) {
+            return res.status(502).json({ error: `Yahoo Finance returned ${response.status}` });
+        }
+        const json = await response.json();
+        const result = json?.chart?.result?.[0];
+        if (!result || !result.meta || result.meta.regularMarketPrice === undefined) {
+            return res.status(502).json({ error: 'No data returned from Yahoo Finance' });
+        }
+
+        res.json({ price: result.meta.regularMarketPrice });
+    } catch (err) {
+        console.error(`Current price fetch error for ${symbol}:`, err);
+        res.status(500).json({ error: 'Failed to fetch current price data' });
+    }
+});
+
 // Catch-all route for SPA: serve index.html for any request that doesn't match an API route
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {

@@ -102,17 +102,30 @@ export const fetchLastClosePrice = async (symbol: string): Promise<number> => {
         }
     }
 
-    // 3. Fallback Logic:
+    // 3. Fetch from our backend Yahoo Finance proxy (no API key needed)
+    try {
+        const response = await fetch(`./api/current-price?symbol=${symbol}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.price) {
+                const price = Number(data.price.toFixed(2));
+                // Update cache
+                cache[symbol] = { price, timestamp: Date.now() };
+                localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+                return price;
+            }
+        }
+    } catch (error) {
+        console.error(`Error fetching proxy price for ${symbol}`, error);
+    }
+
+    // 4. Final Fallback Logic:
     // If we have STALE data (more than 15 mins old), return it instead of mock prices
     if (existingEntry) {
         return existingEntry.price;
     }
 
-    // Only fallback to mock prices if NO cached data exists for this symbol
+    // Only fallback to static mock prices if NO cached data exists and APIs fail completely
     const basePrice = DEFAULT_MOCK_PRICES[symbol] || 150.00;
-    const mockPrice = DEFAULT_MOCK_PRICES[symbol]
-        ? basePrice
-        : basePrice + (Math.random() * 50 - 25);
-
-    return Number(mockPrice.toFixed(2));
+    return Number(basePrice.toFixed(2));
 };
