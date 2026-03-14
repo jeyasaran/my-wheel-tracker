@@ -59,15 +59,15 @@ export default function IncomeChart() {
             const monthsMap: Record<string, number> = { '3 Months': 3, '6 Months': 6, '12 Months': 12 };
             const cutoffDate = subMonths(new Date(), monthsMap[timeRange]);
             filtered = allClosed.filter(item => {
-                const dateStr = item.closeDate || item.openDate;
+                const dateStr = item.displayType === 'Stock' ? (item.closeDate || item.openDate) : item.openDate;
                 return new Date(dateStr) >= cutoffDate;
             });
         }
 
         // 3. Sort by date
         filtered.sort((a, b) => {
-            const dateA = a.closeDate || a.openDate;
-            const dateB = b.closeDate || b.openDate;
+            const dateA = a.displayType === 'Stock' ? (a.closeDate || a.openDate) : a.openDate;
+            const dateB = b.displayType === 'Stock' ? (b.closeDate || b.openDate) : b.openDate;
             return new Date(dateA).getTime() - new Date(dateB).getTime();
         });
 
@@ -85,7 +85,7 @@ export default function IncomeChart() {
         }>();
 
         filtered.forEach(item => {
-            const dateStr = item.closeDate || item.openDate;
+            const dateStr = item.displayType === 'Stock' ? (item.closeDate || item.openDate) : item.openDate;
             const actionDate = parseISO(dateStr);
             let key = '';
             let dateLabel = '';
