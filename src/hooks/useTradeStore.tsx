@@ -307,13 +307,16 @@ export function TradeProvider({ children }: { children: ReactNode }) {
     const activeTrades = trades.filter(t => !t.isArchived);
 
     const metrics: TradeMetrics = {
-        totalPremium: activeTrades.reduce((sum, t) => sum + ((t.premiumPrice || 0) * t.contracts * 100), 0),
+        totalPremium: activeTrades.reduce((sum, t) => {
+            const val = (t.premiumPrice || 0) * t.contracts * 100;
+            return sum + (t.side === 'SELL' ? val : -val);
+        }, 0),
         totalPnL: (() => {
             const tradesPnL = activeTrades.reduce((sum, t) => {
                 if (t.status === 'OPEN') return sum;
                 const openingValue = (t.premiumPrice || 0) * t.contracts * 100;
                 const closingValue = (t.closePrice || 0) * t.contracts * 100;
-                return sum + (openingValue - closingValue);
+                return sum + (t.side === 'SELL' ? (openingValue - closingValue) : (closingValue - openingValue));
             }, 0);
 
             const stocksPnL = stockPositions.filter(p => p.status === 'CLOSED').reduce((sum, p) => {
@@ -332,7 +335,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
             const tradeWins = closedTrades.filter(t => {
                 const totalPremium = (t.premiumPrice || 0) * t.contracts * 100;
                 const costToClose = t.closePrice ? t.closePrice * t.contracts * 100 : 0;
-                return totalPremium > costToClose;
+                return t.side === 'SELL' ? (totalPremium > costToClose) : (costToClose > totalPremium);
             }).length;
 
             const stockWins = closedStocks.filter(p => (p.sellPrice || 0) > p.buyPrice).length;
