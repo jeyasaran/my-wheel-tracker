@@ -58,11 +58,18 @@ export default function IncomeChart() {
         if (timeRange !== 'All Time') {
             const monthsMap: Record<string, number> = { '3 Months': 3, '6 Months': 6, '12 Months': 12 };
             const cutoffDate = subMonths(new Date(), monthsMap[timeRange]);
-            filtered = allClosed.filter(item => new Date(item.openDate) >= cutoffDate);
+            filtered = allClosed.filter(item => {
+                const dateStr = item.closeDate || item.openDate;
+                return new Date(dateStr) >= cutoffDate;
+            });
         }
 
         // 3. Sort by date
-        filtered.sort((a, b) => new Date(a.openDate).getTime() - new Date(b.openDate).getTime());
+        filtered.sort((a, b) => {
+            const dateA = a.closeDate || a.openDate;
+            const dateB = b.closeDate || b.openDate;
+            return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
 
         if (filtered.length === 0) return [];
 
@@ -78,16 +85,17 @@ export default function IncomeChart() {
         }>();
 
         filtered.forEach(item => {
-            const openDate = parseISO(item.openDate);
+            const dateStr = item.closeDate || item.openDate;
+            const actionDate = parseISO(dateStr);
             let key = '';
             let dateLabel = '';
 
             if (period === 'Weekly') {
-                const start = startOfWeek(openDate);
+                const start = startOfWeek(actionDate);
                 key = start.toISOString();
                 dateLabel = format(start, 'MMM d');
             } else {
-                const start = startOfMonth(openDate);
+                const start = startOfMonth(actionDate);
                 key = start.toISOString();
                 dateLabel = format(start, 'MMM yyyy');
             }
@@ -95,7 +103,7 @@ export default function IncomeChart() {
             if (!groupedData.has(key)) {
                 groupedData.set(key, {
                     date: dateLabel,
-                    dateObj: period === 'Weekly' ? startOfWeek(openDate) : startOfMonth(openDate),
+                    dateObj: period === 'Weekly' ? startOfWeek(actionDate) : startOfMonth(actionDate),
                     csp: 0,
                     cc: 0,
                     stocks: 0,
