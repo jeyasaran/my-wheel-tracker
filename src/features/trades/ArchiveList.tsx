@@ -56,21 +56,21 @@ export default function ArchiveList() {
                                     <tr key={trade.id} className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                                         <td className="px-4 py-4 text-gray-500 whitespace-nowrap">{trade.openDate}</td>
                                         <td className="px-4 py-4 font-medium">{trade.symbol}</td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-4 py-4 whitespace-nowrap">
                                             <Badge variant="outline">{trade.strategy === 'Vert' ? 'Vert' : trade.strategy || '—'}</Badge>
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-4 py-4 whitespace-nowrap">
                                             <Badge variant={trade.side === 'BUY' ? 'secondary' : 'default'}>
                                                 {trade.side || 'SELL'}
                                             </Badge>
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-4 py-4 whitespace-nowrap">
                                             <Badge variant="outline">{trade.type}</Badge>
                                         </td>
-                                        <td className="px-4 py-4">${trade.strikePrice}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap">${trade.strikePrice}</td>
                                         <td className="px-4 py-4 text-green-600 font-medium">+${(trade.premiumPrice * trade.contracts * 100).toFixed(2)}</td>
                                         <td className="px-4 py-4 whitespace-nowrap">{trade.expirationDate}</td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-4 py-4 whitespace-nowrap">
                                             <Badge variant="outline">{trade.status}</Badge>
                                         </td>
                                         <td className="px-4 py-4 text-right space-x-2">

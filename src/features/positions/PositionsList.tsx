@@ -222,7 +222,7 @@ export default function PositionsList() {
                                     return (
                                         <>
                                             <tr key={pos.id} className={`border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${isExpanded ? 'bg-gray-50 dark:bg-gray-800/50' : ''}`}>
-                                                <td className="px-4 py-4">
+                                                <td className="px-4 py-4 whitespace-nowrap">
                                                     <button
                                                         onClick={() => toggleRow(pos.id)}
                                                         className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
@@ -233,8 +233,8 @@ export default function PositionsList() {
                                                 <td className="px-4 py-4 font-medium">{pos.symbol}</td>
                                                 <td className="px-4 py-4 text-gray-500 whitespace-nowrap">{pos.openDate}</td>
                                                 {activeTab === 'Closed' && <td className="px-4 py-4 text-gray-500 whitespace-nowrap">{pos.closeDate}</td>}
-                                                <td className="px-4 py-4">{pos.quantity}</td>
-                                                <td className="px-4 py-4">${pos.buyPrice.toFixed(2)}</td>
+                                                <td className="px-4 py-4 whitespace-nowrap">{pos.quantity}</td>
+                                                <td className="px-4 py-4 whitespace-nowrap">${pos.buyPrice.toFixed(2)}</td>
                                                 {activeTab !== 'Closed' ? (
                                                     <>
                                                         <td className="px-4 py-4 font-medium text-blue-600 dark:text-blue-400">
@@ -293,7 +293,7 @@ export default function PositionsList() {
                                             </tr>
                                             {isExpanded && (
                                                 <tr className="bg-gray-50/50 dark:bg-gray-800/30">
-                                                    <td colSpan={9} className="px-6 py-4">
+                                                    <td colSpan={9} className="px-6 py-4 whitespace-nowrap">
                                                         <div className="pl-10 space-y-4">
                                                             <div className="text-sm">
                                                                 <span className="font-semibold text-gray-600 dark:text-gray-400">Total Premium: </span>
