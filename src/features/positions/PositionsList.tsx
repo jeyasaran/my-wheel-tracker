@@ -257,7 +257,7 @@ export default function PositionsList() {
                                                         <td className="px-4 py-4 font-medium">${(pos.sellPrice || 0).toFixed(2)}</td>
                                                         <td className={`px-4 py-4 font-medium ${((pos.sellPrice || 0) - pos.buyPrice) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                             <div className="flex flex-col">
-                                                                <span className="text-base font-bold">{((pos.sellPrice || 0) - pos.buyPrice) >= 0 ? '+' : ''}{((pos.sellPrice || 0 - pos.buyPrice) * pos.quantity).toFixed(2)}</span>
+                                                                <span className="text-base font-bold">{((pos.sellPrice || 0) - pos.buyPrice) >= 0 ? '+' : ''}{(((pos.sellPrice || 0) - pos.buyPrice) * pos.quantity).toFixed(2)}</span>
                                                                 <span className="text-xs opacity-80 font-normal mt-0.5">{((pos.sellPrice || 0) - pos.buyPrice) >= 0 ? '+' : ''}{(((pos.sellPrice || 0) - pos.buyPrice) / pos.buyPrice * 100).toFixed(2)}%</span>
                                                             </div>
                                                         </td>
