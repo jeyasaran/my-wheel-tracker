@@ -83,7 +83,7 @@ export default function Metrics() {
         const period1 = getUnixTime(startDate);
         const period2 = getUnixTime(now);
 
-        fetch(`http://localhost:3001/api/spy-history?period1=${period1}&period2=${period2}`)
+        fetch(`./api/spy-history?period1=${period1}&period2=${period2}`)
             .then(r => r.json())
             .then(data => { if (Array.isArray(data)) setSpyData(data); else setSpyData([]); })
             .catch(() => setSpyData([]));
