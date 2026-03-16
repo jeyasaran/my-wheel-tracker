@@ -4,6 +4,7 @@ import AccountOverview from './AccountOverview';
 import LastMonthEarnings from './LastMonthEarnings';
 import EfficiencyStats from './EfficiencyStats';
 import IncomeChart from './IncomeChart';
+import BrokerIncomeChart from './BrokerIncomeChart';
 import WeeklyMetrics from './WeeklyMetrics';
 
 export default function Dashboard() {
@@ -50,8 +51,9 @@ export default function Dashboard() {
                 <EfficiencyStats csp={stats.efficiency.csp} cc={stats.efficiency.cc} />
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-6">
                 <IncomeChart />
+                <BrokerIncomeChart />
             </div>
         </div>
     );
