@@ -37,18 +37,25 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-// Generates a deterministic color based on the broker name string
-const stringToColor = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    // Limit to standard palette colors for consistency (Tailwind-like colors)
-    const palettes = [
-        '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-        '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16'
-    ];
-    return palettes[Math.abs(hash) % palettes.length];
+// High-contrast palette: each color is chosen to be maximally distinct
+// on both light and dark backgrounds. Sorted brokers are assigned by index.
+const BROKER_PALETTE = [
+    '#3B82F6', // Blue
+    '#F97316', // Orange
+    '#8B5CF6', // Purple
+    '#EF4444', // Red
+    '#10B981', // Emerald
+    '#EC4899', // Pink
+    '#F59E0B', // Amber
+    '#06B6D4', // Cyan
+    '#84CC16', // Lime
+    '#6366F1', // Indigo
+];
+
+const getBrokerColor = (brokerName: string, sortedBrokers: string[]) => {
+    if (brokerName === 'Unassigned') return '#9CA3AF';
+    const idx = sortedBrokers.indexOf(brokerName);
+    return BROKER_PALETTE[idx % BROKER_PALETTE.length];
 };
 
 export default function BrokerIncomeChart() {
@@ -290,7 +297,7 @@ export default function BrokerIncomeChart() {
                                             dataKey={brokerName}
                                             name={brokerName}
                                             stackId="a"
-                                            fill={brokerName === 'Unassigned' ? '#9CA3AF' : stringToColor(brokerName)}
+                                            fill={getBrokerColor(brokerName, activeBrokers)}
                                             radius={isTopBar ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                                         />
                                     );
