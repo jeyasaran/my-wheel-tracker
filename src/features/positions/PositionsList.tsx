@@ -214,8 +214,8 @@ export default function PositionsList() {
                                     const adjustedCostPerShare = adjustedCostTotal / pos.quantity;
 
                                     const marketValue = currentPrice ? currentPrice * pos.quantity : 0;
-                                    const pnl = currentPrice ? (currentPrice - pos.buyPrice) * pos.quantity : 0;
-                                    const pnlPercent = currentPrice ? ((currentPrice - pos.buyPrice) / pos.buyPrice) * 100 : 0;
+                                    const pnl = currentPrice ? (currentPrice - adjustedCostPerShare) * pos.quantity : 0;
+                                    const pnlPercent = currentPrice ? ((currentPrice - adjustedCostPerShare) / adjustedCostPerShare) * 100 : 0;
 
                                     const isExpanded = expandedRows.has(pos.id);
 
