@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { subMonths, isSameMonth, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval, format, getDay } from 'date-fns';
+import { subMonths, isSameMonth, parseISO, startOfWeek, endOfWeek, subWeeks, isWithinInterval, format, getDay, differenceInDays } from 'date-fns';
 import { useTradeStore } from './useTradeStore';
 
 export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 1) {
@@ -112,23 +112,35 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             const typeTrades = recentTrades.filter(t => t.type === type);
             if (typeTrades.length === 0) return { avgReturn: 0, winRate: 0, count: 0 };
 
-            const totalReturnPct = typeTrades.reduce((sum, t) => {
+            let totalIncome = 0;
+            let totalCapDays = 0;
+            let totalDaysHeld = 0;
+
+            typeTrades.forEach(t => {
                 const premium = (t.premiumPrice || 0) * 100 * t.contracts;
-                const cost = (t.closePrice || 0) * 100 * t.contracts;
-                const pnl = t.side === 'BUY' ? (cost - premium) : (premium - cost);
+                const closeCost = (t.closePrice || 0) * 100 * t.contracts;
+                let pnl = 0;
+                if (t.strategy === 'Vert') {
+                    pnl = premium + closeCost;
+                } else {
+                    pnl = t.side === 'BUY' ? (closeCost - premium) : (premium - closeCost);
+                }
+                totalIncome += pnl;
 
-                // Capital at risk (Collateral)
-                // User formula: options profit / (strike * contracts * 100)
                 const collateral = t.strikePrice * 100 * t.contracts;
-                if (collateral === 0) return sum;
-                return sum + (pnl / collateral);
-            }, 0);
+                const days = Math.max(1, differenceInDays(parseISO(t.closeDate!), parseISO(t.openDate)));
 
-            // Win Rate Logic reused
+                totalCapDays += collateral * days;
+                totalDaysHeld += days;
+            });
+
+            const avgCapital = totalDaysHeld > 0 ? totalCapDays / totalDaysHeld : 0;
+            const avgReturn = avgCapital > 0 ? (totalIncome / avgCapital) * 100 : 0;
+
             const { winRate } = calculateEfficiency(typeTrades);
 
             return {
-                avgReturn: (totalReturnPct / typeTrades.length) * 100,
+                avgReturn,
                 count: typeTrades.length,
                 winRate
             };
