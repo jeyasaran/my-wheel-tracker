@@ -9,7 +9,6 @@ interface PremiumLeader {
     trades: number;
     contracts: number;
     avgDte: number;
-    avgDelta: number; // For now we'll mock or leave blank unless we have delta data
     annualizedRoc: number;
     premiums: number;
 }
@@ -28,7 +27,6 @@ export default function LeadersByPremium() {
                     trades: 0,
                     contracts: 0,
                     avgDte: 0,
-                    avgDelta: 0, // Placeholder as delta isn't in the schema natively
                     annualizedRoc: 0,
                     premiums: 0,
                 });
@@ -57,22 +55,18 @@ export default function LeadersByPremium() {
             // Average DTE
             data.avgDte = data.trades > 0 ? Math.round(data.avgDte / data.trades) : 0;
 
-            // To calculate Annualized ROC, we need collateral and days held per ticker.
-            // A simplified approximation based on the trades for this ticker:
             const symbolTrades = optionTrades.filter(t => t.symbol === symbol);
 
             let totalIncome = 0;
-            let totalCapDays = 0;
-            let totalDaysHeld = 0;
+            let totalCollateral = 0;
 
             symbolTrades.forEach(t => {
                 const premium = (t.premiumPrice || 0) * 100 * t.contracts;
                 const closeCost = (t.closePrice || 0) * 100 * t.contracts;
                 let pnl = 0;
 
-                // If Open, Unrealized PnL is premium. If Closed, it's (premium - closeCost)
                 if (t.status === 'OPEN') {
-                    pnl = premium; // Simplification for open trades
+                    pnl = premium;
                 } else {
                     if (t.strategy === 'Vert') {
                         pnl = premium + closeCost;
@@ -82,29 +76,16 @@ export default function LeadersByPremium() {
                 }
 
                 totalIncome += pnl;
-
-                const collateral = t.strikePrice * 100 * t.contracts;
-                const endDate = t.status === 'OPEN' ? new Date().toISOString() : t.closeDate;
-                const days = Math.max(1, differenceInDays(parseISO(endDate!), parseISO(t.openDate)));
-
-                totalCapDays += collateral * days;
-                totalDaysHeld += days;
+                totalCollateral += (t.strikePrice * 100 * t.contracts);
             });
 
-            const avgCapital = totalDaysHeld > 0 ? totalCapDays / totalDaysHeld : 0;
-
-            // Find overall period
-            if (symbolTrades.length > 0) {
-                const sortedTrades = [...symbolTrades].sort((a, b) => new Date(a.openDate).getTime() - new Date(b.openDate).getTime());
-                const firstOpen = sortedTrades[0].openDate;
-                // find last close or today
-                let lastClose = sortedTrades[0].openDate;
-                sortedTrades.forEach(t => {
-                    const end = t.status === 'OPEN' ? new Date().toISOString() : (t.closeDate || t.openDate);
-                    if (new Date(end) > new Date(lastClose)) lastClose = end;
-                });
-                const periodDays = Math.max(1, differenceInDays(parseISO(lastClose), parseISO(firstOpen)));
-                data.annualizedRoc = avgCapital > 0 ? (totalIncome / avgCapital) * (365 / periodDays) * 100 : 0;
+            // ROC = Total Premium / Total Collateral
+            // Annualized = ROC * (365 / Avg DTE)
+            if (totalCollateral > 0 && data.avgDte > 0) {
+                const roc = totalIncome / totalCollateral;
+                data.annualizedRoc = roc * (365 / data.avgDte) * 100;
+            } else {
+                data.annualizedRoc = 0;
             }
 
             result.push(data);
@@ -122,8 +103,8 @@ export default function LeadersByPremium() {
     };
 
     return (
-        <Card className="bg-[#111318] border-gray-800 text-gray-100 shadow-xl overflow-hidden rounded-xl">
-            <CardHeader className="pb-4 pt-5 px-6 border-b border-gray-800/50">
+        <Card className="shadow-sm border-gray-200 dark:border-gray-800">
+            <CardHeader className="pb-4 pt-5 px-6 border-b border-gray-100 dark:border-gray-800/50">
                 <CardTitle className="text-lg font-medium flex items-center gap-2">
                     <Trophy className="h-5 w-5 text-yellow-500" />
                     Leaders - By Premium
@@ -132,29 +113,27 @@ export default function LeadersByPremium() {
             <CardContent className="p-0">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-gray-400 bg-gray-900/40 border-b border-gray-800/50">
+                        <thead className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-800/50">
                             <tr>
                                 <th className="px-6 py-3 font-medium">Ticker</th>
                                 <th className="px-6 py-3 font-medium text-right">Trades</th>
                                 <th className="px-6 py-3 font-medium text-right">Contracts</th>
                                 <th className="px-6 py-3 font-medium text-right">Avg DTE</th>
-                                <th className="px-6 py-3 font-medium text-right">Avg Delta</th>
                                 <th className="px-6 py-3 font-medium text-right">Annualized ROC</th>
                                 <th className="px-6 py-3 font-medium text-right">Premiums</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-800/50">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
                             {leaderData.map((row) => (
-                                <tr key={row.ticker} className="hover:bg-gray-800/30 transition-colors">
+                                <tr key={row.ticker} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
                                     <td className="px-6 py-3.5 font-medium">{row.ticker}</td>
-                                    <td className="px-6 py-3.5 text-right text-gray-300">{row.trades}</td>
-                                    <td className="px-6 py-3.5 text-right text-gray-300">{row.contracts}</td>
-                                    <td className="px-6 py-3.5 text-right text-gray-300">{row.avgDte}d</td>
-                                    <td className="px-6 py-3.5 text-right text-gray-300">-</td>
-                                    <td className="px-6 py-3.5 text-right text-[#10b981] font-medium">
+                                    <td className="px-6 py-3.5 text-right text-gray-700 dark:text-gray-300">{row.trades}</td>
+                                    <td className="px-6 py-3.5 text-right text-gray-700 dark:text-gray-300">{row.contracts}</td>
+                                    <td className="px-6 py-3.5 text-right text-gray-700 dark:text-gray-300">{row.avgDte}d</td>
+                                    <td className="px-6 py-3.5 text-right font-medium text-[#10b981]">
                                         {row.annualizedRoc > 0 ? '+' : ''}{row.annualizedRoc.toFixed(1)}%
                                     </td>
-                                    <td className="px-6 py-3.5 text-right text-[#10b981] font-medium">
+                                    <td className="px-6 py-3.5 text-right font-medium text-[#10b981]">
                                         {formatCurrency(row.premiums)}
                                     </td>
                                 </tr>

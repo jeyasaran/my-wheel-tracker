@@ -108,13 +108,13 @@ export default function LeadersLaggards() {
         <div className="w-full xl:w-1/2 p-4">
             <h3 className={cn(
                 "text-base font-semibold mb-3",
-                isLaggard ? "text-red-400" : "text-yellow-500"
+                isLaggard ? "text-red-500" : "text-yellow-500"
             )}>
                 {title}
             </h3>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-gray-400 border-b border-gray-800/50">
+                    <thead className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800/50">
                         <tr>
                             <th className="py-2.5 font-medium">Ticker</th>
                             <th className="px-3 py-2.5 font-medium text-right">CC</th>
@@ -124,17 +124,17 @@ export default function LeadersLaggards() {
                             <th className="py-2.5 font-medium text-right">Total P/L</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-800/50">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
                         {items.map((row) => (
-                            <tr key={row.ticker} className="hover:bg-gray-800/30 transition-colors">
-                                <td className="py-3 font-medium">{row.ticker}</td>
+                            <tr key={row.ticker} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                                <td className="py-3 font-medium text-gray-900 dark:text-gray-100">{row.ticker}</td>
                                 <td className="px-3 py-3 text-right text-[#10b981]">{formatCurrency(row.ccPremium, true)}</td>
                                 <td className="px-3 py-3 text-right text-[#10b981]">{formatCurrency(row.cspPremium, true)}</td>
-                                <td className="px-3 py-3 text-right text-[#10b981]">{formatCurrency(row.totalPremium, true)}</td>
-                                <td className={cn("px-3 py-3 text-right", row.posPl < 0 ? "text-red-400" : row.posPl > 0 ? "text-[#10b981]" : "text-gray-500")}>
+                                <td className="px-3 py-3 text-right font-medium text-[#10b981]">{formatCurrency(row.totalPremium, true)}</td>
+                                <td className={cn("px-3 py-3 text-right", row.posPl < 0 ? "text-red-500" : row.posPl > 0 ? "text-[#10b981]" : "text-gray-500 dark:text-gray-400")}>
                                     {formatCurrency(row.posPl)}
                                 </td>
-                                <td className={cn("py-3 text-right font-bold", row.totalPl < 0 ? "text-red-400" : "text-[#10b981]")}>
+                                <td className={cn("py-3 text-right font-bold", row.totalPl < 0 ? "text-red-500" : "text-[#10b981]")}>
                                     {formatCurrency(row.totalPl)}
                                 </td>
                             </tr>
@@ -146,14 +146,14 @@ export default function LeadersLaggards() {
     );
 
     return (
-        <Card className="bg-[#111318] border-gray-800 text-gray-100 shadow-xl overflow-hidden rounded-xl">
+        <Card className="shadow-sm border-gray-200 dark:border-gray-800">
             <CardHeader className="pb-0 pt-5 px-6">
                 <CardTitle className="text-lg font-medium flex items-center gap-2">
                     <Zap className="h-5 w-5 text-yellow-500" />
                     Leaders & Laggards - By P/L
                 </CardTitle>
             </CardHeader>
-            <CardContent className="p-2 flex flex-col xl:flex-row divide-y xl:divide-y-0 xl:divide-x divide-gray-800/50">
+            <CardContent className="p-2 flex flex-col xl:flex-row divide-y xl:divide-y-0 xl:divide-x divide-gray-100 dark:divide-gray-800/50">
                 {renderTable(data.leaders, 'Leaders', false)}
                 {renderTable(data.laggards, 'Laggards', true)}
             </CardContent>
