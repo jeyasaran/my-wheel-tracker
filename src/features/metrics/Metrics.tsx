@@ -5,6 +5,8 @@ import { subMonths, format, parseISO, startOfDay, differenceInDays, startOfYear,
 import { Info, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import PositionPnLChart from './PositionPnLChart';
+import LeadersByPremium from './LeadersByPremium';
+import LeadersLaggards from './LeadersLaggards';
 
 type TimeRange = '1m' | '3m' | '6m' | 'ytd' | '12m' | 'all';
 
@@ -409,6 +411,12 @@ export default function Metrics() {
             {/* === POSITION P&L CHART === */}
             <div className="mt-6">
                 <PositionPnLChart />
+            </div>
+
+            {/* === LEADERS AND LAGGARDS === */}
+            <div className="mt-6 flex flex-col gap-6">
+                <LeadersByPremium />
+                <LeadersLaggards />
             </div>
         </>
     );
