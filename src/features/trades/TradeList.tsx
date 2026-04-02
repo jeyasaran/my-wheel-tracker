@@ -115,8 +115,8 @@ export default function TradeList() {
                     return uniqueExps;
                 }
 
-                // Otherwise (Filtered mode), just remove stale dates
-                return prev.filter(e => uniqueExps.includes(e));
+                // Otherwise (Filtered mode), retain existing choices, remove stale dates, and automatically select the newly added dates
+                return [...prev.filter(e => uniqueExps.includes(e)), ...added];
             });
             lastUniqueExps.current = uniqueExps;
         }

@@ -264,7 +264,16 @@ export function TradeForm({ initialData, defaultValues, mode = 'create', onClose
                         <select
                             className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-950 disabled:opacity-50"
                             value={formData.strategy || 'CSP'}
-                            onChange={(e) => setFormData({ ...formData, strategy: e.target.value as Strategy })}
+                            onChange={(e) => {
+                                const newStrategy = e.target.value as Strategy;
+                                setFormData(prev => {
+                                    let newType = prev.type;
+                                    if (newStrategy === 'CSP') newType = 'Put';
+                                    if (newStrategy === 'CC') newType = 'Call';
+                                    // 'Vert' keeps the previous type selection
+                                    return { ...prev, strategy: newStrategy, type: newType };
+                                });
+                            }}
                             disabled={isReadOnly}
                         >
                             <option value="CSP">Cash Secured Put</option>
