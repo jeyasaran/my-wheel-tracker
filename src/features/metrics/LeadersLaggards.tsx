@@ -14,7 +14,7 @@ interface PlData {
 }
 
 export default function LeadersLaggards() {
-    const { trades, stockPositions } = useTradeStore();
+    const { trades, stockPositions, marketPrices } = useTradeStore();
 
     const data = useMemo(() => {
         const grouped = new Map<string, PlData>();
@@ -68,30 +68,35 @@ export default function LeadersLaggards() {
             if (pos.status === 'CLOSED') {
                 pnl = ((pos.sellPrice || 0) - pos.buyPrice) * pos.quantity;
             } else {
-                // If Open, we ideally need currentPrice. Since we don't store it here easily, 
-                // we'll rely only on realized for this card or 0 if open without current quote.
-                // Assuming we want realized + premiums for consistency with standard wheeling:
-                pnl = 0; // Keeping it strictly realized for stocks here unless integrated with real-time API
+                // For Open positions, include Unrealized P/L if market price is available
+                const currentPrice = marketPrices[pos.symbol];
+                if (currentPrice) {
+                    pnl = (currentPrice - pos.buyPrice) * pos.quantity;
+                }
             }
 
             group.posPl += pnl;
             group.totalPl += pnl;
         });
 
-        const allData = Array.from(grouped.values()).filter(d => d.totalPremium > 0 || d.posPl !== 0);
+        const allData = Array.from(grouped.values()).filter(d =>
+            Math.abs(d.totalPl) > 0.01 || Math.abs(d.totalPremium) > 0.01
+        );
 
-        // Sort by Total P/L descending
-        allData.sort((a, b) => b.totalPl - a.totalPl);
+        // Leaders: Top performers with positive Total P/L
+        const leaders = allData
+            .filter(d => d.totalPl > 0)
+            .sort((a, b) => b.totalPl - a.totalPl)
+            .slice(0, 5);
 
-        // Leaders: Top 5
-        const leaders = allData.slice(0, 5);
-
-        // Laggards: Bottom 5, strictly those with negative or lowest P/L
-        // We reverse it to show the absolute worst at the top of the laggards list
-        const laggards = [...allData].reverse().slice(0, 5).filter(d => !leaders.includes(d));
+        // Laggards: Worst performers (mostly those with negative Total P/L)
+        const laggards = allData
+            .filter(d => d.totalPl < 0)
+            .sort((a, b) => a.totalPl - b.totalPl) // Sort ascending to show biggest losers first
+            .slice(0, 5);
 
         return { leaders, laggards };
-    }, [trades, stockPositions]);
+    }, [trades, stockPositions, marketPrices]);
 
     const formatCurrency = (val: number, removeSign = false) => {
         if (val === 0) return '-';

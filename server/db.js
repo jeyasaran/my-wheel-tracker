@@ -8,8 +8,16 @@ const dbPath = process.env.DB_PATH || join(__dirname, 'wheel_tracker.db');
 
 if (process.env.DB_PATH) {
     const packagedDbPath = join(__dirname, 'wheel_tracker.db');
-    // Seed the database on first run if it doesn't exist in the persistent volume
-    if (!fs.existsSync(dbPath) && fs.existsSync(packagedDbPath)) {
+    const legacyDbPath = '/data/wheel_tracker.db';
+
+    // 1. If /share DB doesn't exist, check if /data DB exists (Migration)
+    if (!fs.existsSync(dbPath) && fs.existsSync(legacyDbPath)) {
+        console.log(`Migrating existing database from ${legacyDbPath} to ${dbPath}`);
+        fs.mkdirSync(dirname(dbPath), { recursive: true });
+        fs.copyFileSync(legacyDbPath, dbPath);
+    }
+    // 2. If still doesn't exist, seed from packaged database
+    else if (!fs.existsSync(dbPath) && fs.existsSync(packagedDbPath)) {
         console.log(`Seeding initial database from ${packagedDbPath} to ${dbPath}`);
         fs.mkdirSync(dirname(dbPath), { recursive: true });
         fs.copyFileSync(packagedDbPath, dbPath);
