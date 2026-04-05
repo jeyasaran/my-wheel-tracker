@@ -32,7 +32,8 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
 
         // --- Collateral & Account Value ---
         const openTrades = trades.filter(t => t.status === 'OPEN');
-        const openStocks = stockPositions.filter(p => p.status === 'OPEN');
+        // Robust open stocks: Anything not closed or with no sellPrice
+        const openStocks = stockPositions.filter(p => p.status !== 'CLOSED' && !p.sellPrice);
 
         const totalOpenStockBasis = openStocks.reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
 
