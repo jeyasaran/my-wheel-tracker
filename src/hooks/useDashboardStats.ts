@@ -37,9 +37,18 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
         const totalOpenStockBasis = openStocks.reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
 
         const ccCollateral = openTrades.filter(t => t.type === 'Call').reduce((sum, t) => {
-            const matchingStock = openStocks.find(s => s.symbol === t.symbol);
-            const basis = matchingStock ? matchingStock.buyPrice : 0;
-            return sum + (basis * 100 * t.contracts);
+            const ticker = (t.symbol || '').trim().toUpperCase();
+            const matchingStocks = openStocks.filter(s => (s.symbol || '').trim().toUpperCase() === ticker);
+
+            if (matchingStocks.length > 0) {
+                // Use the average buy price of matching stocks for the basis
+                const totalQty = matchingStocks.reduce((q, s) => q + s.quantity, 0);
+                const totalBasis = matchingStocks.reduce((b, s) => b + (s.buyPrice * s.quantity), 0);
+                const avgBasis = totalQty > 0 ? totalBasis / totalQty : 0;
+
+                return sum + (avgBasis * 100 * t.contracts);
+            }
+            return sum;
         }, 0);
 
         const cspCollateral = openTrades.filter(t => t.type === 'Put').reduce((sum, t) => {
