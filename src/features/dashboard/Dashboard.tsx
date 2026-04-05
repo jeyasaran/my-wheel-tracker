@@ -3,6 +3,7 @@ import { useDashboardStats } from '../../hooks/useDashboardStats';
 import AccountOverview from './AccountOverview';
 import LastMonthEarnings from './LastMonthEarnings';
 import EfficiencyStats from './EfficiencyStats';
+import PerformanceAnalytics from './PerformanceAnalytics';
 import IncomeChart from './IncomeChart';
 import BrokerIncomeChart from './BrokerIncomeChart';
 import WeeklyMetrics from './WeeklyMetrics';
@@ -27,6 +28,11 @@ export default function Dashboard() {
                     ccCollateral={stats.accountOverview.ccCollateral}
                     cspCollateral={stats.accountOverview.cspCollateral}
                 />
+            </div>
+
+            {/* Performance Analytics */}
+            <div className="grid gap-6">
+                <PerformanceAnalytics performance={stats.performance} />
             </div>
 
             {/* Weekly Metrics */}

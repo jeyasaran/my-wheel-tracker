@@ -277,6 +277,69 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
         };
 
 
+        const overallPerformance = (() => {
+            const allWinners = closedTrades.filter(t => {
+                const premium = (t.premiumPrice || 0) * 100 * t.contracts;
+                const closeCost = (t.closePrice || 0) * 100 * t.contracts;
+                let pnl = 0;
+                if (t.strategy === 'Vert') {
+                    pnl = premium + closeCost;
+                } else {
+                    pnl = t.side === 'BUY' ? (closeCost - premium) : (premium - closeCost);
+                }
+                return pnl > 0;
+            }).length + stockPositions.filter(p => p.status === 'CLOSED' && (p.sellPrice || 0) > p.buyPrice).length;
+
+            const totalClosed = closedTrades.length + stockPositions.filter(p => p.status === 'CLOSED').length;
+            const winRate = totalClosed > 0 ? (allWinners / totalClosed) * 100 : 0;
+
+            // Profit Factor: Sum(Profits) / Abs(Sum(Losses))
+            let grossProfit = 0;
+            let grossLoss = 0;
+
+            closedTrades.forEach(t => {
+                const premium = (t.premiumPrice || 0) * 100 * t.contracts;
+                const closeCost = (t.closePrice || 0) * 100 * t.contracts;
+                let pnl = 0;
+                if (t.strategy === 'Vert') {
+                    pnl = premium + closeCost;
+                } else {
+                    pnl = t.side === 'BUY' ? (closeCost - premium) : (premium - closeCost);
+                }
+                if (pnl > 0) grossProfit += pnl;
+                else grossLoss += Math.abs(pnl);
+            });
+
+            stockPositions.filter(p => p.status === 'CLOSED').forEach(p => {
+                const pnl = ((p.sellPrice || 0) - p.buyPrice) * p.quantity;
+                if (pnl > 0) grossProfit += pnl;
+                else grossLoss += Math.abs(pnl);
+            });
+
+            const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99.9 : 0);
+
+            // Projected 30-day Income
+            const next30Days = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+            const projectedIncome = openTrades
+                .filter(t => t.expirationDate && parseISO(t.expirationDate) <= next30Days)
+                .reduce((sum, t) => sum + (t.premiumPrice * 100 * t.contracts), 0);
+
+            // Avg Trade Duration
+            const durations = [
+                ...closedTrades.map(t => differenceInDays(parseISO(t.closeDate!), parseISO(t.openDate))),
+                ...stockPositions.filter(p => p.status === 'CLOSED').map(p => differenceInDays(parseISO(p.closeDate!), parseISO(p.openDate!)))
+            ];
+            const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+
+            return {
+                winRate,
+                profitFactor,
+                projectedIncome,
+                avgDuration,
+                totalClosed
+            };
+        })();
+
         return {
             accountOverview: {
                 totalPnL,
@@ -298,7 +361,8 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
                 csp: calculateStats('Put'),
                 cc: calculateStats('Call')
             },
-            weekly: calculateWeeklyStats()
+            weekly: calculateWeeklyStats(),
+            performance: overallPerformance
         };
-    }, [trades, cashBalance, weekOffset, monthOffset]);
+    }, [trades, stockPositions, cashBalance, weekOffset, monthOffset]);
 }
