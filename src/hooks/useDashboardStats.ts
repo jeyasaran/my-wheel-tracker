@@ -47,17 +47,18 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             const matchingStocks = openStocks.filter(s => (s.symbol || '').trim().toUpperCase() === ticker);
 
             if (matchingStocks.length > 0) {
-                // Find how many contracts are covered. 
-                // We use the basis of the first matching stock(s) until contracts are filled
-                let contractsToCover = t.contracts;
                 let tradeBasis = 0;
+                let contractsToCover = t.contracts;
 
                 for (const stock of matchingStocks) {
                     if (contractsToCover <= 0) break;
 
-                    const availableContracts = Math.floor(stock.quantity / 100);
-                    const covering = Math.min(contractsToCover, availableContracts);
+                    // Smarter lot detection: if quantity matches contracts (e.g. 11 and 11), assume lots
+                    const isLotBased = stock.quantity < 100 && stock.quantity === t.contracts;
+                    const sharesAvailable = isLotBased ? stock.quantity * 100 : stock.quantity;
+                    const availableContracts = Math.floor(sharesAvailable / 100);
 
+                    const covering = Math.min(contractsToCover, availableContracts);
                     if (covering > 0) {
                         tradeBasis += (covering * 100 * stock.buyPrice);
                         contractsToCover -= covering;
@@ -65,9 +66,10 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
                     }
                 }
 
-                // If we couldn't find matching stock quantities, fallback to last known basis or strike
+                // If still not matching exactly (fallback), use contracts * basis
                 if (tradeBasis === 0) {
                     tradeBasis = t.contracts * 100 * matchingStocks[0].buyPrice;
+                    tiedStockIds.add(matchingStocks[0].id);
                 }
 
                 return sum + tradeBasis;
