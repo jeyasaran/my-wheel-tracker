@@ -373,24 +373,32 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             }));
         })();
 
-        const openStockBasis = stockPositions
-            .filter(p => p.status === 'OPEN')
-            .reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
-
-        const utilizationPercent = accountValue > 0
-            ? ((totalCollateral + openStockBasis) / accountValue) * 100
-            : 0;
 
         const tickerConcentration = (() => {
             const symbols = new Map<string, number>();
 
-            // Option Collateral
+            // Option Exposure
             openTrades.forEach(t => {
-                const collateral = (t.strikePrice || 0) * 100 * (t.contracts || 1);
-                symbols.set(t.symbol, (symbols.get(t.symbol) || 0) + collateral);
+                let allocated = 0;
+                if (t.side === 'BUY') {
+                    allocated = (t.premiumPrice || 0) * 100 * (t.contracts || 1);
+                } else {
+                    if (t.type === 'Put') {
+                        // CSP requires strike collateral
+                        allocated = (t.strikePrice || 0) * 100 * (t.contracts || 1);
+                    } else if (t.strategy === 'Vert') {
+                        // Spreads require margin (simplified to 1 strike diff for now or max loss)
+                        // For now we don't have strike2, so we'll leave as is or ignore
+                        allocated = 0;
+                    }
+                    // Covered Calls (type === 'Call') are 0 because stock is already counted below
+                }
+                if (allocated > 0) {
+                    symbols.set(t.symbol, (symbols.get(t.symbol) || 0) + allocated);
+                }
             });
 
-            // Stock Basis
+            // Stock Exposure
             stockPositions.filter(p => p.status === 'OPEN').forEach(p => {
                 const basis = p.buyPrice * p.quantity;
                 symbols.set(p.symbol, (symbols.get(p.symbol) || 0) + basis);
@@ -400,6 +408,12 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
                 .map(([name, value]) => ({ name, value }))
                 .sort((a, b) => b.value - a.value);
         })();
+
+        const totalAllocatedCapital = Array.from(tickerConcentration.values()).reduce((sum, item: any) => sum + item.value, 0);
+
+        const utilizationPercent = accountValue > 0
+            ? (totalAllocatedCapital / accountValue) * 100
+            : 0;
 
         return {
             accountOverview: {
