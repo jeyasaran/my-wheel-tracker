@@ -77,18 +77,14 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             return sum;
         }, 0);
 
-        // 3. Other Long Positions (Market Value / Basis if price unavailable)
-        const longPosValue = openStocks.reduce((sum, p) => {
-            // Subtract basis of stocks NOT already counted in CC
-            if (tiedStockIds.has(p.id)) return sum;
-            return sum + (p.buyPrice * p.quantity);
-        }, 0);
+        // 3. Total Open Stock Basis (CC + Longs)
+        const totalOpenStockBasis = openStocks.reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
 
         // Account Value = Cash Ledger Balance + Realized P&L
         const accountValue = cashBalance + totalPnL;
 
-        // Available Cash = Account Value - (CC + CSP + Longs)
-        const totalCommitted = ccCollateral + cspCollateral + longPosValue;
+        // Available Cash = Account Value - (CSP + Total Open Stock Basis)
+        const totalCommitted = cspCollateral + totalOpenStockBasis;
         const availableCash = accountValue - totalCommitted;
 
         const totalCollateral = ccCollateral + cspCollateral;
