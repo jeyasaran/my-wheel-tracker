@@ -417,7 +417,7 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             });
 
             // Stock Exposure
-            stockPositions.filter(p => p.status === 'OPEN').forEach(p => {
+            openStocks.forEach(p => {
                 const basis = p.buyPrice * p.quantity;
                 symbols.set(p.symbol, (symbols.get(p.symbol) || 0) + basis);
             });
