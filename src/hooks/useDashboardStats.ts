@@ -39,43 +39,21 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             return sum + (t.strikePrice * 100 * t.contracts);
         }, 0);
 
-        // 2. CC Cash Tied Up: Adj Cost Basis * 100 * Contracts
-        // Tracking which stocks are "tied up" to avoid double counting
-        const tiedStockIds = new Set<string>();
-        const ccCollateral = openTrades.filter(t => t.type === 'Call').reduce((sum, t) => {
-            const ticker = (t.symbol || '').trim().toUpperCase();
-            const matchingStocks = openStocks.filter(s => (s.symbol || '').trim().toUpperCase() === ticker);
+        // Helper to match exactly how PositionsList.tsx classifies "Wheel" vs "Long"
+        const getLinkedCCs = (pos: typeof openStocks[0]) => {
+            const expectedContracts = Math.floor((pos.quantity < 100 && pos.quantity > 0 && pos.quantity <= 50 ? pos.quantity * 100 : pos.quantity) / 100);
+            return trades.filter(t => {
+                if (t.type !== 'Call') return false;
+                if (pos.brokerId && t.brokerId !== pos.brokerId) return false;
+                if (t.contracts !== expectedContracts) return false;
+                if (t.positionId) return t.positionId === pos.id;
+                return t.symbol === pos.symbol && new Date(t.openDate) >= new Date(pos.openDate!);
+            });
+        };
 
-            if (matchingStocks.length > 0) {
-                let tradeBasis = 0;
-                let contractsToCover = t.contracts;
-
-                for (const stock of matchingStocks) {
-                    if (contractsToCover <= 0) break;
-
-                    // Smarter lot detection: if quantity matches contracts (e.g. 11 and 11), assume lots
-                    const isLotBased = stock.quantity < 100 && stock.quantity === t.contracts;
-                    const sharesAvailable = isLotBased ? stock.quantity * 100 : stock.quantity;
-                    const availableContracts = Math.floor(sharesAvailable / 100);
-
-                    const covering = Math.min(contractsToCover, availableContracts);
-                    if (covering > 0) {
-                        tradeBasis += (covering * 100 * stock.buyPrice);
-                        contractsToCover -= covering;
-                        tiedStockIds.add(stock.id);
-                    }
-                }
-
-                // If still not matching exactly (fallback), use contracts * basis
-                if (tradeBasis === 0) {
-                    tradeBasis = t.contracts * 100 * matchingStocks[0].buyPrice;
-                    tiedStockIds.add(matchingStocks[0].id);
-                }
-
-                return sum + tradeBasis;
-            }
-            return sum;
-        }, 0);
+        // 2. CC Cash Tied Up: Sum of all "Wheel" position basis
+        const wheelPositions = openStocks.filter(pos => getLinkedCCs(pos).length > 0);
+        const ccCollateral = wheelPositions.reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
 
         // 3. Total Open Stock Basis (CC + Longs)
         const totalOpenStockBasis = openStocks.reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
