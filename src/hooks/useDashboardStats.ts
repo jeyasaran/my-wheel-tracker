@@ -340,6 +340,26 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             };
         })();
 
+        const tickerConcentration = (() => {
+            const symbols = new Map<string, number>();
+
+            // Option Collateral
+            openTrades.forEach(t => {
+                const collateral = (t.strikePrice || 0) * 100 * (t.contracts || 1);
+                symbols.set(t.symbol, (symbols.get(t.symbol) || 0) + collateral);
+            });
+
+            // Stock Basis
+            stockPositions.filter(p => p.status === 'OPEN').forEach(p => {
+                const basis = p.buyPrice * p.quantity;
+                symbols.set(p.symbol, (symbols.get(p.symbol) || 0) + basis);
+            });
+
+            return Array.from(symbols.entries())
+                .map(([name, value]) => ({ name, value }))
+                .sort((a, b) => b.value - a.value);
+        })();
+
         return {
             accountOverview: {
                 totalPnL,
@@ -362,7 +382,8 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
                 cc: calculateStats('Call')
             },
             weekly: calculateWeeklyStats(),
-            performance: overallPerformance
+            performance: overallPerformance,
+            tickerConcentration
         };
     }, [trades, stockPositions, cashBalance, weekOffset, monthOffset]);
 }

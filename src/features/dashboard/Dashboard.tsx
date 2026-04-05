@@ -7,6 +7,7 @@ import PerformanceAnalytics from './PerformanceAnalytics';
 import IncomeChart from './IncomeChart';
 import BrokerIncomeChart from './BrokerIncomeChart';
 import WeeklyMetrics from './WeeklyMetrics';
+import TickerConcentration from './TickerConcentration';
 
 export default function Dashboard() {
     const [weekOffset, setWeekOffset] = useState(0);
@@ -30,9 +31,13 @@ export default function Dashboard() {
                 />
             </div>
 
-            {/* Performance Analytics */}
-            <div className="grid gap-6">
+            {/* Performance & Risk Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <PerformanceAnalytics performance={stats.performance} />
+                <TickerConcentration
+                    data={stats.tickerConcentration}
+                    totalAccountValue={stats.accountOverview.accountValue}
+                />
             </div>
 
             {/* Weekly Metrics */}
