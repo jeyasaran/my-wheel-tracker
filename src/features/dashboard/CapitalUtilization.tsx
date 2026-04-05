@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Activity } from 'lucide-react';
+import { InfoTooltip } from '../../components/ui/Tooltip';
 
 interface CapitalUtilizationProps {
     utilization: number; // 0 to 100
@@ -29,6 +30,7 @@ export default function CapitalUtilization({ utilization }: CapitalUtilizationPr
                 <h3 className="text-lg font-bold flex items-center gap-2">
                     <Activity className="w-5 h-5 text-emerald-500" />
                     Capital Utilization
+                    <InfoTooltip content="Calculated as (Total Allocated Capital / Net Liquidity). Allocated capital includes the cash required for CSP collateral and the adjusted cost basis of all open stock positions." />
                 </h3>
             </div>
 

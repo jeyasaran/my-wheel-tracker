@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import { HelpCircle } from 'lucide-react';
+import { InfoTooltip } from '../../components/ui/Tooltip';
 
 interface Stats {
     avgReturn: number;
@@ -27,7 +27,8 @@ export default function EfficiencyStats({ csp, cc }: EfficiencyStatsProps) {
                         </div>
                         <div>
                             <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                                Avg Return <HelpCircle className="h-3 w-3" />
+                                Avg Return
+                                <InfoTooltip content="Time-weighted average return. Calculated as (Total P/L / Time-Weighted Average Capital) * 100. Average capital accounts for the collateral held and the duration of each trade." />
                             </p>
                             <p className={`text-2xl font-bold mt-1 ${csp.avgReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 {csp.avgReturn > 0 ? '+' : ''}{csp.avgReturn.toFixed(2)}%
@@ -47,7 +48,8 @@ export default function EfficiencyStats({ csp, cc }: EfficiencyStatsProps) {
                         </div>
                         <div>
                             <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                                Avg Return <HelpCircle className="h-3 w-3" />
+                                Avg Return
+                                <InfoTooltip content="Time-weighted average return. Calculated as (Total P/L / Time-Weighted Average Capital) * 100. Average capital accounts for the adjusted cost basis of shares held and the duration of each trade." />
                             </p>
                             <p className={`text-2xl font-bold mt-1 ${cc.avgReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 {cc.avgReturn > 0 ? '+' : ''}{cc.avgReturn.toFixed(2)}%

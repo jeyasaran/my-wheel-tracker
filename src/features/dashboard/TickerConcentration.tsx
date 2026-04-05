@@ -1,5 +1,6 @@
-import { Treemap, ResponsiveContainer, Tooltip } from 'recharts';
+import { Treemap, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { PieChart } from 'lucide-react';
+import { InfoTooltip } from '../../components/ui/Tooltip';
 
 interface TickerExposure {
     name: string;
@@ -89,6 +90,7 @@ export default function TickerConcentration({ data, totalAccountValue }: TickerC
                 <h3 className="text-lg font-bold flex items-center gap-2">
                     <PieChart className="w-5 h-5 text-indigo-500" />
                     Ticker Concentration & Risk
+                    <InfoTooltip content="Displays the distribution of your deployed capital across tickers. It sums the cash secured for CSPs and the adjusted cost basis of all open stock positions for each ticker." />
                 </h3>
                 <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">
                     By Capital Deployed
@@ -104,8 +106,8 @@ export default function TickerConcentration({ data, totalAccountValue }: TickerC
                         stroke="#fff"
                         content={<CustomizedContent totalAccountValue={totalAccountValue} />}
                     >
-                        <Tooltip
-                            content={({ active, payload }) => {
+                        <RechartsTooltip
+                            content={({ active, payload }: any) => {
                                 if (active && payload && payload.length) {
                                     const item = payload[0].payload;
                                     const percentage = ((item.value / totalAccountValue) * 100).toFixed(1);

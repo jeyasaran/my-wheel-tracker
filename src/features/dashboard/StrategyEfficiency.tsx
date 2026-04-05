@@ -1,5 +1,6 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Target, TrendingUp } from 'lucide-react';
+import { InfoTooltip } from '../../components/ui/Tooltip';
 
 interface StrategyStat {
     name: string;
@@ -27,6 +28,7 @@ export default function StrategyEfficiency({ data }: StrategyEfficiencyProps) {
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                 <Target className="w-5 h-5 text-indigo-500" />
                 Strategy Efficiency
+                <InfoTooltip content="Compares the performance of your different strategies (CSP, CC, Vertical). It shows the total P/L and win rate for each strategy type." />
             </h3>
 
             <div className="flex-1 min-h-[220px]">
@@ -46,9 +48,9 @@ export default function StrategyEfficiency({ data }: StrategyEfficiencyProps) {
                             width={50}
                             style={{ fontSize: '12px', fontWeight: 'bold' }}
                         />
-                        <Tooltip
+                        <RechartsTooltip
                             cursor={{ fill: 'transparent' }}
-                            content={({ active, payload }) => {
+                            content={({ active, payload }: any) => {
                                 if (active && payload && payload.length) {
                                     const item = payload[0].payload;
                                     return (

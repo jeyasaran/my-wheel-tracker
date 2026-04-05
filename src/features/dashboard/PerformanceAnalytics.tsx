@@ -1,4 +1,5 @@
 import { TrendingUp, Target, Clock, Calendar } from 'lucide-react';
+import { InfoTooltip } from '../../components/ui/Tooltip';
 
 interface PerformanceAnalyticsProps {
     performance: {
@@ -59,6 +60,7 @@ export default function PerformanceAnalytics({ performance }: PerformanceAnalyti
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-blue-500" />
                 Performance Analytics
+                <InfoTooltip content="A high-level summary of your trading performance over the selected period. Win rate is the percentage of profitable trades. Profit factor is the ratio of gross profit to gross loss." />
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
