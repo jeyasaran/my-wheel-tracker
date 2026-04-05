@@ -32,9 +32,14 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
 
         // --- Collateral & Account Value ---
         const openTrades = trades.filter(t => t.status === 'OPEN');
+        const openStocks = stockPositions.filter(p => p.status === 'OPEN');
+
+        const totalOpenStockBasis = openStocks.reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
 
         const ccCollateral = openTrades.filter(t => t.type === 'Call').reduce((sum, t) => {
-            return sum + (t.strikePrice * 100 * t.contracts);
+            const matchingStock = openStocks.find(s => s.symbol === t.symbol);
+            const basis = matchingStock ? matchingStock.buyPrice : 0;
+            return sum + (basis * 100 * t.contracts);
         }, 0);
 
         const cspCollateral = openTrades.filter(t => t.type === 'Put').reduce((sum, t) => {
@@ -46,8 +51,8 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
         // Account Value = Cash Ledger Balance + Realized P&L
         const accountValue = cashBalance + totalPnL;
 
-        // Available Cash = Account Value - Collateral
-        const availableCash = accountValue - totalCollateral;
+        // Available Cash = Account Value - CSP Collateral - Total Open Stock Basis
+        const availableCash = accountValue - cspCollateral - totalOpenStockBasis;
 
 
         const lastMonthTrades = closedTrades.filter(t =>
