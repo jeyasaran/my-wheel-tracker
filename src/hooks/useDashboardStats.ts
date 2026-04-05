@@ -340,6 +340,47 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             };
         })();
 
+        const strategyPerformance = (() => {
+            const stats = {
+                CSP: { pnl: 0, wins: 0, total: 0 },
+                CC: { pnl: 0, wins: 0, total: 0 },
+                Vert: { pnl: 0, wins: 0, total: 0 }
+            };
+
+            closedTrades.forEach(t => {
+                const strat = (t.strategy as keyof typeof stats) || (t.type === 'Put' ? 'CSP' : 'CC');
+                if (!stats[strat]) return;
+
+                const premium = (t.premiumPrice || 0) * 100 * t.contracts;
+                const closeCost = (t.closePrice || 0) * 100 * t.contracts;
+                let tradePnl = 0;
+                if (t.strategy === 'Vert') {
+                    tradePnl = premium + closeCost;
+                } else {
+                    tradePnl = t.side === 'BUY' ? (closeCost - premium) : (premium - closeCost);
+                }
+
+                stats[strat].pnl += tradePnl;
+                stats[strat].total += 1;
+                if (tradePnl > 0) stats[strat].wins += 1;
+            });
+
+            return Object.entries(stats).map(([name, data]) => ({
+                name,
+                pnl: data.pnl,
+                winRate: data.total > 0 ? (data.wins / data.total) * 100 : 0,
+                count: data.total
+            }));
+        })();
+
+        const openStockBasis = stockPositions
+            .filter(p => p.status === 'OPEN')
+            .reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
+
+        const utilizationPercent = accountValue > 0
+            ? ((totalCollateral + openStockBasis) / accountValue) * 100
+            : 0;
+
         const tickerConcentration = (() => {
             const symbols = new Map<string, number>();
 
@@ -383,7 +424,9 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             },
             weekly: calculateWeeklyStats(),
             performance: overallPerformance,
-            tickerConcentration
+            tickerConcentration,
+            strategyPerformance,
+            utilizationPercent
         };
     }, [trades, stockPositions, cashBalance, weekOffset, monthOffset]);
 }
