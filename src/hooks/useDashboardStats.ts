@@ -32,37 +32,64 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
 
         // --- Collateral & Account Value ---
         const openTrades = trades.filter(t => t.status === 'OPEN');
-        // Robust open stocks: Anything not closed or with no sellPrice
-        const openStocks = stockPositions.filter(p => p.status !== 'CLOSED' && !p.sellPrice);
+        const openStocks = stockPositions.filter(p => !p.status || p.status === 'OPEN');
 
-        const totalOpenStockBasis = openStocks.reduce((sum, p) => sum + (p.buyPrice * p.quantity), 0);
+        // 1. CSP Collateral: Strike * 100 * Contracts
+        const cspCollateral = openTrades.filter(t => t.type === 'Put').reduce((sum, t) => {
+            return sum + (t.strikePrice * 100 * t.contracts);
+        }, 0);
 
+        // 2. CC Cash Tied Up: Adj Cost Basis * 100 * Contracts
+        // Tracking which stocks are "tied up" to avoid double counting
+        const tiedStockIds = new Set<string>();
         const ccCollateral = openTrades.filter(t => t.type === 'Call').reduce((sum, t) => {
             const ticker = (t.symbol || '').trim().toUpperCase();
             const matchingStocks = openStocks.filter(s => (s.symbol || '').trim().toUpperCase() === ticker);
 
             if (matchingStocks.length > 0) {
-                // Use the average buy price of matching stocks for the basis
-                const totalQty = matchingStocks.reduce((q, s) => q + s.quantity, 0);
-                const totalBasis = matchingStocks.reduce((b, s) => b + (s.buyPrice * s.quantity), 0);
-                const avgBasis = totalQty > 0 ? totalBasis / totalQty : 0;
+                // Find how many contracts are covered. 
+                // We use the basis of the first matching stock(s) until contracts are filled
+                let contractsToCover = t.contracts;
+                let tradeBasis = 0;
 
-                return sum + (avgBasis * 100 * t.contracts);
+                for (const stock of matchingStocks) {
+                    if (contractsToCover <= 0) break;
+
+                    const availableContracts = Math.floor(stock.quantity / 100);
+                    const covering = Math.min(contractsToCover, availableContracts);
+
+                    if (covering > 0) {
+                        tradeBasis += (covering * 100 * stock.buyPrice);
+                        contractsToCover -= covering;
+                        tiedStockIds.add(stock.id);
+                    }
+                }
+
+                // If we couldn't find matching stock quantities, fallback to last known basis or strike
+                if (tradeBasis === 0) {
+                    tradeBasis = t.contracts * 100 * matchingStocks[0].buyPrice;
+                }
+
+                return sum + tradeBasis;
             }
             return sum;
         }, 0);
 
-        const cspCollateral = openTrades.filter(t => t.type === 'Put').reduce((sum, t) => {
-            return sum + (t.strikePrice * 100 * t.contracts);
+        // 3. Other Long Positions (Market Value / Basis if price unavailable)
+        const longPosValue = openStocks.reduce((sum, p) => {
+            // Subtract basis of stocks NOT already counted in CC
+            if (tiedStockIds.has(p.id)) return sum;
+            return sum + (p.buyPrice * p.quantity);
         }, 0);
-
-        const totalCollateral = ccCollateral + cspCollateral;
 
         // Account Value = Cash Ledger Balance + Realized P&L
         const accountValue = cashBalance + totalPnL;
 
-        // Available Cash = Account Value - CSP Collateral - Total Open Stock Basis
-        const availableCash = accountValue - cspCollateral - totalOpenStockBasis;
+        // Available Cash = Account Value - (CC + CSP + Longs)
+        const totalCommitted = ccCollateral + cspCollateral + longPosValue;
+        const availableCash = accountValue - totalCommitted;
+
+        const totalCollateral = ccCollateral + cspCollateral;
 
 
         const lastMonthTrades = closedTrades.filter(t =>

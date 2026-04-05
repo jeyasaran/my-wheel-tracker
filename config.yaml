@@ -1,6 +1,6 @@
 name: "Options Wheel Tracker"
 description: "A comprehensive tracker for Options Wheel Strategy and Long stock positions."
-version: "1.3.18"
+version: "1.3.19"
 slug: "options_wheel_tracker"
 init: false
 arch:
