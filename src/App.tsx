@@ -6,6 +6,7 @@ import TradeList from './features/trades/TradeList';
 import ArchiveList from './features/trades/ArchiveList';
 import PositionsList from './features/positions/PositionsList';
 import MassiveSettings from './features/settings/MassiveSettings';
+import AIAnalysis from './features/analysis/AIAnalysis';
 import CashLedger from './features/settings/CashLedger';
 import ThemeSettings from './features/settings/ThemeSettings';
 import BrokerSettings from './features/settings/BrokerSettings';
@@ -21,6 +22,7 @@ function App() {
             <Route path="/metrics" element={<Metrics />} />
             <Route path="/trades" element={<TradeList />} />
             <Route path="/positions" element={<PositionsList />} />
+            <Route path="/analysis" element={<AIAnalysis />} />
             <Route path="/archive" element={<ArchiveList />} />
             <Route path="/settings/massive" element={<MassiveSettings />} />
             <Route path="/settings/cash-ledger" element={<CashLedger />} />
