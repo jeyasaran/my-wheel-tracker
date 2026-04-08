@@ -34,8 +34,8 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
         const openTrades = trades.filter(t => t.status === 'OPEN');
         const openStocks = stockPositions.filter(p => !p.status || p.status === 'OPEN');
 
-        // 1. CSP Collateral: Strike * 100 * Contracts
-        const cspCollateral = openTrades.filter(t => t.type === 'Put').reduce((sum, t) => {
+        // 1. CSP Collateral: Strike * 100 * Contracts (Only for Sell Puts that are not Verticals)
+        const cspCollateral = openTrades.filter(t => t.type === 'Put' && t.side === 'SELL' && t.strategy !== 'Vert').reduce((sum, t) => {
             return sum + (t.strikePrice * 100 * t.contracts);
         }, 0);
 
@@ -401,12 +401,12 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
                 if (t.side === 'BUY') {
                     allocated = (t.premiumPrice || 0) * 100 * (t.contracts || 1);
                 } else {
-                    if (t.type === 'Put') {
-                        // CSP requires strike collateral
+                    if (t.type === 'Put' && t.strategy !== 'Vert') {
+                        // Only actual CSPs require full strike collateral
                         allocated = (t.strikePrice || 0) * 100 * (t.contracts || 1);
                     } else if (t.strategy === 'Vert') {
                         // Spreads require margin (simplified to 1 strike diff for now or max loss)
-                        // For now we don't have strike2, so we'll leave as is or ignore
+                        // Currently ignoring as per request for available cash logic
                         allocated = 0;
                     }
                     // Covered Calls (type === 'Call') are 0 because stock is already counted below
