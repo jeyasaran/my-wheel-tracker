@@ -37,7 +37,9 @@ export default function NAVTracker() {
 
     // Form state
     const [monthYear, setMonthYear] = useState(() => format(new Date(), 'yyyy-MM'));
+    // Derive a safe effectiveBrokerId — always falls back to the first broker if state is empty
     const [brokerId, setBrokerId] = useState('');
+    const effectiveBrokerId = brokerId || (brokers.length > 0 ? brokers[0].id : '');
     const [navValue, setNavValue] = useState('');
     const [cashIn, setCashIn] = useState('');
     const [cashOut, setCashOut] = useState('');
@@ -45,15 +47,7 @@ export default function NAVTracker() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    useEffect(() => {
-        fetchEntries();
-    }, []);
-
-    useEffect(() => {
-        if (brokers.length > 0 && !brokerId) {
-            setBrokerId(brokers[0].id);
-        }
-    }, [brokers]);
+    useEffect(() => { fetchEntries(); }, []);
 
     const fetchEntries = async () => {
         try {
@@ -75,16 +69,20 @@ export default function NAVTracker() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!monthYear || !brokerId || !navValue) return;
-        setIsSubmitting(true);
         setError(null);
         setSuccess(false);
 
-        const existing = entries.find(en => en.monthYear === monthYear && en.brokerId === brokerId);
+        if (!monthYear) { setError('Please select a month.'); return; }
+        if (!effectiveBrokerId) { setError('Please select a broker first. Add one via Settings → Brokers.'); return; }
+        if (!navValue || Number(navValue) <= 0) { setError('Please enter a valid NAV value greater than 0.'); return; }
+
+        setIsSubmitting(true);
+
+        const existing = entries.find(en => en.monthYear === monthYear && en.brokerId === effectiveBrokerId);
         const payload: NavEntry = {
             id: existing?.id ?? crypto.randomUUID(),
             monthYear,
-            brokerId,
+            brokerId: effectiveBrokerId,
             navValue: Number(navValue),
             cashIn: Number(cashIn) || 0,
             cashOut: Number(cashOut) || 0,
@@ -216,7 +214,7 @@ export default function NAVTracker() {
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Broker</label>
                         <select
-                            value={brokerId}
+                            value={effectiveBrokerId}
                             onChange={e => setBrokerId(e.target.value)}
                             required
                             className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
