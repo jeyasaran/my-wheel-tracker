@@ -42,6 +42,8 @@ export default function NAVTracker() {
     const [cashIn, setCashIn] = useState('');
     const [cashOut, setCashOut] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState(false);
 
     useEffect(() => {
         fetchEntries();
@@ -57,10 +59,15 @@ export default function NAVTracker() {
         try {
             setLoading(true);
             const res = await fetch('./api/nav-entries');
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Server returned ${res.status}`);
+            }
             const data = await res.json();
-            setEntries(data);
-        } catch (e) {
+            setEntries(Array.isArray(data) ? data : []);
+        } catch (e: any) {
             console.error('Failed to fetch NAV entries', e);
+            setError(e.message || 'Failed to load entries. Please restart the server.');
         } finally {
             setLoading(false);
         }
@@ -70,8 +77,9 @@ export default function NAVTracker() {
         e.preventDefault();
         if (!monthYear || !brokerId || !navValue) return;
         setIsSubmitting(true);
+        setError(null);
+        setSuccess(false);
 
-        // Check if an entry already exists for this month+broker to update it
         const existing = entries.find(en => en.monthYear === monthYear && en.brokerId === brokerId);
         const payload: NavEntry = {
             id: existing?.id ?? crypto.randomUUID(),
@@ -83,15 +91,23 @@ export default function NAVTracker() {
         };
 
         try {
-            await fetch('./api/nav-entries', {
+            const res = await fetch('./api/nav-entries', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Server returned ${res.status}. Try restarting the server.`);
+            }
             await fetchEntries();
             setNavValue('');
             setCashIn('');
             setCashOut('');
+            setSuccess(true);
+            setTimeout(() => setSuccess(false), 3000);
+        } catch (e: any) {
+            setError(e.message || 'Failed to save entry.');
         } finally {
             setIsSubmitting(false);
         }
@@ -166,6 +182,18 @@ export default function NAVTracker() {
                     Record end-of-month net asset value per broker and track capital growth over time.
                 </p>
             </div>
+
+            {/* Error/Success Banner */}
+            {error && (
+                <div className="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400 text-sm font-medium">
+                    ⚠️ {error}
+                </div>
+            )}
+            {success && (
+                <div className="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 text-sm font-medium">
+                    ✅ Entry saved successfully!
+                </div>
+            )}
 
             {/* Form */}
             <Card className="p-6">
