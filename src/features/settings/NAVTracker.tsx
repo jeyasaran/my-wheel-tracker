@@ -6,6 +6,11 @@ import { Input } from '../../components/ui/Input';
 import { Trash2, LineChart, PlusCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format, parse } from 'date-fns';
 
+const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+});
+
 const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 
@@ -41,7 +46,7 @@ export default function NAVTracker() {
         try {
             const existing = navEntries.find(e => e.monthYear === monthYear && e.brokerId === resolvedBrokerId);
             const entry: NavEntry = {
-                id: existing?.id ?? crypto.randomUUID(),
+                id: existing?.id ?? uuid(),
                 monthYear,
                 brokerId: resolvedBrokerId,
                 navValue: navNum,
