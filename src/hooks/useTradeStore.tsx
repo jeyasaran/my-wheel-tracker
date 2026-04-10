@@ -2,6 +2,15 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { Trade, TradeMetrics, CashTransaction, StockPosition, Broker } from '../types';
 import { fetchLastClosePrice } from '../services/marketService';
 
+export interface NavEntry {
+    id: string;
+    monthYear: string; // "YYYY-MM"
+    brokerId: string;
+    navValue: number;
+    cashIn: number;
+    cashOut: number;
+}
+
 const STORAGE_KEY = 'wheel-trades-v1';
 const TRANSACTIONS_STORAGE_KEY = 'wheel-transactions-v1';
 const POSITIONS_STORAGE_KEY = 'wheel-positions-v1';
@@ -30,6 +39,9 @@ export interface TradeContextType {
     addBroker: (broker: Broker) => void;
     updateBroker: (id: string, updates: Partial<Broker>) => void;
     deleteBroker: (id: string) => void;
+    navEntries: NavEntry[];
+    addNavEntry: (entry: NavEntry) => Promise<void>;
+    deleteNavEntry: (id: string) => Promise<void>;
     resetAllData: () => Promise<void>;
     loading: boolean;
 }
@@ -48,23 +60,26 @@ export function TradeProvider({ children }: { children: ReactNode }) {
     const [transactions, setTransactions] = useState<CashTransaction[]>([]);
     const [stockPositions, setStockPositions] = useState<StockPosition[]>([]);
     const [brokers, setBrokers] = useState<Broker[]>([]);
+    const [navEntries, setNavEntries] = useState<NavEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [tradesRes, transRes, posRes, brokersRes] = await Promise.all([
+            const [tradesRes, transRes, posRes, brokersRes, navRes] = await Promise.all([
                 fetch('./api/trades'),
                 fetch('./api/transactions'),
                 fetch('./api/positions'),
-                fetch('./api/brokers')
+                fetch('./api/brokers'),
+                fetch('./api/nav-entries').catch(() => ({ ok: false, json: async () => [] } as any))
             ]);
 
             const fetchedTrades = await tradesRes.json();
             const fetchedTrans = await transRes.json();
             const fetchedPos = await posRes.json();
             const fetchedBrokers = await brokersRes.json();
+            const fetchedNav = navRes.ok ? await navRes.json().catch(() => []) : [];
 
             // --- Migration Logic ---
             // If the database is empty but localStorage has data, migrate it!
@@ -102,6 +117,7 @@ export function TradeProvider({ children }: { children: ReactNode }) {
             setTransactions(fetchedTrans);
             setStockPositions(fetchedPos);
             setBrokers(fetchedBrokers);
+            setNavEntries(Array.isArray(fetchedNav) ? fetchedNav : []);
         } catch (error) {
             console.error('Error fetching data from API', error);
         } finally {
@@ -300,6 +316,40 @@ export function TradeProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const addNavEntry = async (entry: NavEntry) => {
+        try {
+            const res = await fetch('./api/nav-entries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entry)
+            });
+            if (!res.ok) throw new Error(`API error ${res.status}`);
+            // Upsert locally: replace existing or add new
+            setNavEntries(prev => {
+                const idx = prev.findIndex(e => e.monthYear === entry.monthYear && e.brokerId === entry.brokerId);
+                if (idx >= 0) {
+                    const next = [...prev];
+                    next[idx] = entry;
+                    return next;
+                }
+                return [...prev, entry];
+            });
+        } catch (error) {
+            console.error('Error adding nav entry', error);
+            throw error; // Re-throw so the UI can show the error
+        }
+    };
+
+    const deleteNavEntry = async (id: string) => {
+        try {
+            await fetch(`./api/nav-entries/${id}`, { method: 'DELETE' });
+            setNavEntries(prev => prev.filter(e => e.id !== id));
+        } catch (error) {
+            console.error('Error deleting nav entry', error);
+            throw error;
+        }
+    };
+
     const cashBalance = transactions.reduce((sum, t) => {
         return t.type === 'DEPOSIT' ? sum + t.amount : sum - t.amount;
     }, 0);
@@ -369,6 +419,9 @@ export function TradeProvider({ children }: { children: ReactNode }) {
             addBroker,
             updateBroker,
             deleteBroker,
+            navEntries,
+            addNavEntry,
+            deleteNavEntry,
             resetAllData,
             loading
         }}>

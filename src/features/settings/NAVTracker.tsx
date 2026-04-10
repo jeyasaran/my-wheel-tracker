@@ -1,28 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useTradeStore } from '../../hooks/useTradeStore';
+import { useState } from 'react';
+import { useTradeStore, type NavEntry } from '../../hooks/useTradeStore';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Trash2, LineChart, PlusCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format, parse } from 'date-fns';
-
-interface NavEntry {
-    id: string;
-    monthYear: string; // "YYYY-MM"
-    brokerId: string;
-    navValue: number;
-    cashIn: number;
-    cashOut: number;
-}
-
-interface MonthRow {
-    monthYear: string;
-    label: string;
-    brokerNavs: Record<string, number>; // brokerId -> navValue
-    cashIn: number;
-    cashOut: number;
-    entryIds: string[];
-}
 
 const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
@@ -31,15 +13,11 @@ const fmtPct = (n: number) =>
     `${n >= 0 ? '+' : ''}${(n * 100).toFixed(2)}%`;
 
 export default function NAVTracker() {
-    const { brokers } = useTradeStore();
-    const [entries, setEntries] = useState<NavEntry[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { brokers, navEntries, addNavEntry, deleteNavEntry } = useTradeStore();
 
     // Form state
     const [monthYear, setMonthYear] = useState(() => format(new Date(), 'yyyy-MM'));
-    // Derive a safe effectiveBrokerId — always falls back to the first broker if state is empty
     const [brokerId, setBrokerId] = useState('');
-    const effectiveBrokerId = brokerId || (brokers.length > 0 ? brokers[0].id : '');
     const [navValue, setNavValue] = useState('');
     const [cashIn, setCashIn] = useState('');
     const [cashOut, setCashOut] = useState('');
@@ -47,88 +25,62 @@ export default function NAVTracker() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    useEffect(() => { fetchEntries(); }, []);
+    // Always pick the first broker if nothing explicitly selected
+    const resolvedBrokerId = brokerId || (brokers.length > 0 ? brokers[0].id : '');
 
-    const fetchEntries = async () => {
-        try {
-            setLoading(true);
-            const res = await fetch('./api/nav-entries');
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || `Server returned ${res.status}`);
-            }
-            const data = await res.json();
-            setEntries(Array.isArray(data) ? data : []);
-        } catch (e: any) {
-            console.error('Failed to fetch NAV entries', e);
-            setError(e.message || 'Failed to load entries. Please restart the server.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleAdd = async () => {
         setError(null);
         setSuccess(false);
 
         if (!monthYear) { setError('Please select a month.'); return; }
-        if (!effectiveBrokerId) { setError('Please select a broker first. Add one via Settings → Brokers.'); return; }
-        if (!navValue || Number(navValue) <= 0) { setError('Please enter a valid NAV value greater than 0.'); return; }
+        if (!resolvedBrokerId) { setError('No broker found. Please add a broker under Settings → Brokers first.'); return; }
+        const navNum = parseFloat(navValue);
+        if (!navValue || isNaN(navNum) || navNum < 0) { setError('Please enter a valid NAV value (0 or more).'); return; }
 
         setIsSubmitting(true);
-
-        const existing = entries.find(en => en.monthYear === monthYear && en.brokerId === effectiveBrokerId);
-        const payload: NavEntry = {
-            id: existing?.id ?? crypto.randomUUID(),
-            monthYear,
-            brokerId: effectiveBrokerId,
-            navValue: Number(navValue),
-            cashIn: Number(cashIn) || 0,
-            cashOut: Number(cashOut) || 0,
-        };
-
         try {
-            const res = await fetch('./api/nav-entries', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || `Server returned ${res.status}. Try restarting the server.`);
-            }
-            await fetchEntries();
+            const existing = navEntries.find(e => e.monthYear === monthYear && e.brokerId === resolvedBrokerId);
+            const entry: NavEntry = {
+                id: existing?.id ?? crypto.randomUUID(),
+                monthYear,
+                brokerId: resolvedBrokerId,
+                navValue: navNum,
+                cashIn: parseFloat(cashIn) || 0,
+                cashOut: parseFloat(cashOut) || 0,
+            };
+            await addNavEntry(entry);
             setNavValue('');
             setCashIn('');
             setCashOut('');
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (e: any) {
-            setError(e.message || 'Failed to save entry.');
+            setError(e?.message ?? 'Failed to save. Please ensure the server has been restarted after the latest update.');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        await fetch(`./api/nav-entries/${id}`, { method: 'DELETE' });
-        await fetchEntries();
+    const handleDelete = async (ids: string[]) => {
+        try {
+            await Promise.all(ids.map(id => deleteNavEntry(id)));
+        } catch (e: any) {
+            setError(e?.message ?? 'Failed to delete entry.');
+        }
     };
 
     // --- Build table rows ---
-    // Get all unique brokerIds that have entries
-    const activeBrokerIds = [...new Set(entries.map(e => e.brokerId))];
+    const sorted = [...navEntries].sort((a, b) => a.monthYear.localeCompare(b.monthYear));
+    const activeBrokerIds = [...new Set(sorted.map(e => e.brokerId))];
     const activeBrokers = activeBrokerIds
         .map(id => brokers.find(b => b.id === id))
         .filter(Boolean) as typeof brokers;
 
-    // Group entries by monthYear, sort chronologically
-    const monthMap = new Map<string, MonthRow>();
-    entries.forEach(e => {
+    // Group by month
+    const monthMap = new Map<string, { label: string; brokerNavs: Record<string, number>; cashIn: number; cashOut: number; entryIds: string[] }>();
+    sorted.forEach(e => {
         if (!monthMap.has(e.monthYear)) {
             monthMap.set(e.monthYear, {
-                monthYear: e.monthYear,
                 label: format(parse(e.monthYear, 'yyyy-MM', new Date()), 'MMM-yy'),
                 brokerNavs: {},
                 cashIn: 0,
@@ -143,30 +95,27 @@ export default function NAVTracker() {
         row.entryIds.push(e.id);
     });
 
-    const sortedRows = [...monthMap.values()].sort((a, b) => a.monthYear.localeCompare(b.monthYear));
+    const sortedRows = [...monthMap.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-    // Compute derived columns
-    const computedRows = sortedRows.map((row, i) => {
+    const computedRows = sortedRows.map(([monthYear, row], i) => {
         const sumBrokers = activeBrokerIds.reduce((s, bid) => s + (row.brokerNavs[bid] ?? 0), 0);
         const netCash = row.cashIn - row.cashOut;
         const adjStart = sumBrokers + netCash;
-        const prevRow = i > 0 ? sortedRows[i - 1] : null;
+        const prev = i > 0 ? sortedRows[i - 1][1] : null;
 
         let capitalGrowthAct: number | null = null;
         let capitalGrowthExp: number | null = null;
         let netGrowthRate: number | null = null;
 
-        if (prevRow && i > 0) {
-            const prevSumBrokers = activeBrokerIds.reduce((s, bid) => s + (prevRow.brokerNavs[bid] ?? 0), 0);
-            const prevNetCash = prevRow.cashIn - prevRow.cashOut;
-            const prevAdjStart = prevSumBrokers + prevNetCash;
-
+        if (prev) {
+            const prevSum = activeBrokerIds.reduce((s, bid) => s + (prev.brokerNavs[bid] ?? 0), 0);
+            const prevAdj = prevSum + (prev.cashIn - prev.cashOut);
             capitalGrowthAct = sumBrokers;
-            capitalGrowthExp = prevAdjStart * 1.025;
-            netGrowthRate = prevAdjStart > 0 ? (sumBrokers / prevAdjStart) - 1 : null;
+            capitalGrowthExp = prevAdj * 1.025;
+            netGrowthRate = prevAdj > 0 ? (sumBrokers / prevAdj) - 1 : null;
         }
 
-        return { ...row, sumBrokers, netCash, adjStart, capitalGrowthAct, capitalGrowthExp, netGrowthRate };
+        return { monthYear, ...row, sumBrokers, netCash, adjStart, capitalGrowthAct, capitalGrowthExp, netGrowthRate };
     });
 
     return (
@@ -181,7 +130,7 @@ export default function NAVTracker() {
                 </p>
             </div>
 
-            {/* Error/Success Banner */}
+            {/* Banners */}
             {error && (
                 <div className="px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400 text-sm font-medium">
                     ⚠️ {error}
@@ -193,13 +142,13 @@ export default function NAVTracker() {
                 </div>
             )}
 
-            {/* Form */}
+            {/* Form — NO <form> wrapper to avoid HTML5 validation blocking submit */}
             <Card className="p-6">
                 <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
                     <PlusCircle className="w-4 h-4 text-blue-500" />
                     Add Monthly NAV Entry
                 </h3>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                     {/* Month */}
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Month</label>
@@ -207,22 +156,22 @@ export default function NAVTracker() {
                             type="month"
                             value={monthYear}
                             onChange={e => setMonthYear(e.target.value)}
-                            required
                         />
                     </div>
                     {/* Broker */}
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Broker</label>
                         <select
-                            value={effectiveBrokerId}
+                            value={resolvedBrokerId}
                             onChange={e => setBrokerId(e.target.value)}
-                            required
                             className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                         >
-                            {brokers.length === 0 && <option value="">No brokers configured</option>}
-                            {brokers.map(b => (
-                                <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
+                            {brokers.length === 0
+                                ? <option value="">No brokers – add one first</option>
+                                : brokers.map(b => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                ))
+                            }
                         </select>
                     </div>
                     {/* NAV Value */}
@@ -235,7 +184,6 @@ export default function NAVTracker() {
                             placeholder="e.g. 25000"
                             value={navValue}
                             onChange={e => setNavValue(e.target.value)}
-                            required
                         />
                     </div>
                     {/* Cash In */}
@@ -250,7 +198,7 @@ export default function NAVTracker() {
                             onChange={e => setCashIn(e.target.value)}
                         />
                     </div>
-                    {/* Cash Out */}
+                    {/* Cash Out + button */}
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cash-Out ($)</label>
                         <div className="flex gap-2">
@@ -262,19 +210,22 @@ export default function NAVTracker() {
                                 value={cashOut}
                                 onChange={e => setCashOut(e.target.value)}
                             />
-                            <Button type="submit" disabled={isSubmitting} className="whitespace-nowrap">
-                                {isSubmitting ? '...' : 'Add'}
+                            <Button
+                                type="button"
+                                onClick={handleAdd}
+                                disabled={isSubmitting}
+                                className="whitespace-nowrap"
+                            >
+                                {isSubmitting ? 'Saving…' : 'Add'}
                             </Button>
                         </div>
                     </div>
-                </form>
+                </div>
             </Card>
 
             {/* Table */}
             <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
-                {loading ? (
-                    <div className="p-12 text-center text-gray-400">Loading NAV data...</div>
-                ) : sortedRows.length === 0 ? (
+                {sortedRows.length === 0 ? (
                     <div className="p-12 text-center text-gray-400">
                         <LineChart className="w-12 h-12 mx-auto mb-3 opacity-30" />
                         <p>No entries yet. Add your first monthly NAV above.</p>
@@ -299,42 +250,28 @@ export default function NAVTracker() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {computedRows.map((row) => (
+                                {computedRows.map(row => (
                                     <tr key={row.monthYear} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
-                                        {/* Month */}
-                                        <td className="px-4 py-3 whitespace-nowrap font-black text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10">
-                                            {row.label}
-                                        </td>
-                                        {/* Per-broker NAV */}
+                                        <td className="px-4 py-3 whitespace-nowrap font-black text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10">{row.label}</td>
                                         {activeBrokers.map(b => (
                                             <td key={b.id} className="px-4 py-3 whitespace-nowrap text-right font-semibold tabular-nums text-gray-700 dark:text-gray-300">
                                                 {row.brokerNavs[b.id] != null ? fmt(row.brokerNavs[b.id]) : <span className="text-gray-300 dark:text-gray-600">—</span>}
                                             </td>
                                         ))}
-                                        {/* Cash In/Out */}
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">
                                             {row.cashIn > 0 ? fmt(row.cashIn) : <span className="text-gray-300 dark:text-gray-600">—</span>}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-rose-600 dark:text-rose-400 font-medium">
                                             {row.cashOut > 0 ? fmt(row.cashOut) : <span className="text-gray-300 dark:text-gray-600">—</span>}
                                         </td>
-                                        {/* Net Cash */}
-                                        <td className={`px-4 py-3 whitespace-nowrap text-right tabular-nums font-semibold ${row.netCash >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {fmt(row.netCash)}
-                                        </td>
-                                        {/* Adj Start */}
-                                        <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-black text-gray-900 dark:text-gray-100 border-l border-gray-100 dark:border-gray-800">
-                                            {fmt(row.adjStart)}
-                                        </td>
-                                        {/* Capital Growth Actual */}
+                                        <td className={`px-4 py-3 whitespace-nowrap text-right tabular-nums font-semibold ${row.netCash >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fmt(row.netCash)}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-black text-gray-900 dark:text-gray-100 border-l border-gray-100 dark:border-gray-800">{fmt(row.adjStart)}</td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-semibold text-gray-700 dark:text-gray-300">
-                                            {row.capitalGrowthAct != null ? fmt(row.capitalGrowthAct) : <span className="text-gray-300 dark:text-gray-600 text-xs">N/A (first row)</span>}
+                                            {row.capitalGrowthAct != null ? fmt(row.capitalGrowthAct) : <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>}
                                         </td>
-                                        {/* Capital Growth Expected */}
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-semibold text-gray-500">
-                                            {row.capitalGrowthExp != null ? fmt(row.capitalGrowthExp) : <span className="text-gray-300 dark:text-gray-600 text-xs">N/A (first row)</span>}
+                                            {row.capitalGrowthExp != null ? fmt(row.capitalGrowthExp) : <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>}
                                         </td>
-                                        {/* Net Growth Rate */}
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums">
                                             {row.netGrowthRate != null ? (
                                                 <span className={`inline-flex items-center gap-1 font-black text-sm ${row.netGrowthRate >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -342,13 +279,12 @@ export default function NAVTracker() {
                                                     {fmtPct(row.netGrowthRate)}
                                                 </span>
                                             ) : (
-                                                <span className="text-gray-300 dark:text-gray-600 text-xs">N/A (first row)</span>
+                                                <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>
                                             )}
                                         </td>
-                                        {/* Delete */}
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <button
-                                                onClick={() => row.entryIds.forEach(id => handleDelete(id))}
+                                                onClick={() => handleDelete(row.entryIds)}
                                                 className="text-gray-300 hover:text-rose-500 dark:text-gray-600 dark:hover:text-rose-400 transition-colors p-1"
                                                 title="Delete all entries for this month"
                                             >
