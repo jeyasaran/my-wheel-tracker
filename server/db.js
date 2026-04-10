@@ -114,6 +114,18 @@ function initDb() {
             notes TEXT,
             UNIQUE(type, amount, date)
         )`);
+
+        // NAV Entries table
+        db.run(`CREATE TABLE IF NOT EXISTS nav_entries (
+            id TEXT PRIMARY KEY,
+            monthYear TEXT NOT NULL,
+            brokerId TEXT NOT NULL,
+            navValue REAL NOT NULL DEFAULT 0,
+            cashIn REAL NOT NULL DEFAULT 0,
+            cashOut REAL NOT NULL DEFAULT 0,
+            FOREIGN KEY (brokerId) REFERENCES brokers (id),
+            UNIQUE(monthYear, brokerId)
+        )`);
     });
 }
 

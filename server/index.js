@@ -345,6 +345,38 @@ app.get('/api/current-price', async (req, res) => {
     }
 });
 
+// --- NAV Entries ---
+app.get('/api/nav-entries', (req, res) => {
+    db.all('SELECT * FROM nav_entries ORDER BY monthYear ASC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/nav-entries', (req, res) => {
+    const { id, monthYear, brokerId, navValue, cashIn, cashOut } = req.body;
+    db.run(
+        `INSERT INTO nav_entries (id, monthYear, brokerId, navValue, cashIn, cashOut)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(monthYear, brokerId) DO UPDATE SET
+           navValue = excluded.navValue,
+           cashIn = excluded.cashIn,
+           cashOut = excluded.cashOut`,
+        [id, monthYear, brokerId, navValue ?? 0, cashIn ?? 0, cashOut ?? 0],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id, monthYear, brokerId, navValue, cashIn, cashOut });
+        }
+    );
+});
+
+app.delete('/api/nav-entries/:id', (req, res) => {
+    db.run('DELETE FROM nav_entries WHERE id = ?', [req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
 // Catch-all route for SPA: serve index.html for any request that doesn't match an API route
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {

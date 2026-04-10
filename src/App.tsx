@@ -10,6 +10,7 @@ import AIAnalysis from './features/analysis/AIAnalysis';
 import CashLedger from './features/settings/CashLedger';
 import ThemeSettings from './features/settings/ThemeSettings';
 import BrokerSettings from './features/settings/BrokerSettings';
+import NAVTracker from './features/settings/NAVTracker';
 import { ThemeProvider } from './hooks/useTheme';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
             <Route path="/archive" element={<ArchiveList />} />
             <Route path="/settings/massive" element={<MassiveSettings />} />
             <Route path="/settings/cash-ledger" element={<CashLedger />} />
+            <Route path="/settings/nav-tracker" element={<NAVTracker />} />
             <Route path="/settings/theme" element={<ThemeSettings />} />
             <Route path="/settings/brokers" element={<BrokerSettings />} />
             {/* Redirect any unknown routes to dashboard */}

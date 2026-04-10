@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, List, Settings, Archive, DollarSign, TrendingUp, Palette, Building2, Loader2, Activity, Menu, X, Sparkles } from 'lucide-react';
+import { LayoutDashboard, List, Settings, Archive, DollarSign, TrendingUp, Palette, Building2, Loader2, Activity, Menu, X, Sparkles, LineChart } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTradeStore } from '../hooks/useTradeStore';
 import { useState } from 'react';
@@ -153,6 +153,21 @@ export function SidebarLayout() {
                     >
                         <DollarSign className="h-4 w-4" />
                         Cash Ledger
+                    </NavLink>
+                    <NavLink
+                        to="/settings/nav-tracker"
+                        onClick={closeMobileMenu}
+                        className={({ isActive }) =>
+                            cn(
+                                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                isActive
+                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-50'
+                            )
+                        }
+                    >
+                        <LineChart className="h-4 w-4" />
+                        NAV Tracker
                     </NavLink>
                     <NavLink
                         to="/settings/massive"
