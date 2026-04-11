@@ -9,6 +9,7 @@ import CapitalUtilization from './CapitalUtilization';
 import StrategyEfficiency from './StrategyEfficiency';
 import IncomeChart from './IncomeChart';
 import BrokerIncomeChart from './BrokerIncomeChart';
+import NAVGrowthChart from './NAVGrowthChart';
 import WeeklyMetrics from './WeeklyMetrics';
 
 export default function Dashboard() {
@@ -74,6 +75,7 @@ export default function Dashboard() {
             <div className="space-y-6">
                 <IncomeChart />
                 <BrokerIncomeChart />
+                <NAVGrowthChart />
             </div>
         </div>
     );
