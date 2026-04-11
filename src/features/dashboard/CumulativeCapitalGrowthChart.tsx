@@ -33,31 +33,17 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-const BROKER_PALETTE = [
-    '#3B82F6', // Blue
-    '#F97316', // Orange
-    '#8B5CF6', // Purple
-    '#EF4444', // Red
-    '#10B981', // Emerald
-    '#EC4899', // Pink
-    '#F59E0B', // Amber
-    '#06B6D4', // Cyan
-    '#84CC16', // Lime
-    '#6366F1', // Indigo
-];
-
-export default function NAVGrowthChart() {
-    const { brokers, navEntries } = useTradeStore();
+export default function CumulativeCapitalGrowthChart() {
+    const { navEntries } = useTradeStore();
     const [timeRange, setTimeRange] = useState<TimeRange>('All Time');
 
     const chartData = useMemo(() => {
         if (!navEntries || navEntries.length === 0) return [];
 
-        // 1. Sort and process entries exactly like in NAVTracker
         const sorted = [...navEntries].sort((a, b) => a.monthYear.localeCompare(b.monthYear));
         const activeBrokerIds = [...new Set(sorted.map(e => e.brokerId))];
 
-        const monthMap = new Map<string, { monthYear: string; label: string; dateObj: Date; brokerNavs: Record<string, number>; cashIn: number; cashOut: number; netCash: number; adjStart: number }>();
+        const monthMap = new Map<string, { monthYear: string; label: string; dateObj: Date; brokerNavs: Record<string, number>; cashIn: number; cashOut: number }>();
         
         sorted.forEach(e => {
             if (!monthMap.has(e.monthYear)) {
@@ -67,9 +53,7 @@ export default function NAVGrowthChart() {
                     dateObj: parse(e.monthYear, 'yyyy-MM', new Date()),
                     brokerNavs: {},
                     cashIn: 0,
-                    cashOut: 0,
-                    netCash: 0,
-                    adjStart: 0
+                    cashOut: 0
                 });
             }
             const row = monthMap.get(e.monthYear)!;
@@ -89,29 +73,34 @@ export default function NAVGrowthChart() {
             const adjStart = sumBrokers + netCash;
             const prev = i > 0 ? computed[i - 1] : null;
 
-            if (i === 0) {
-                cumulativeTargetGrowth = null;
-            } else if (i === 1) {
-                cumulativeTargetGrowth = prev.adjStart * 1.02;
+            let capitalGrowthAct: number | null = null;
+            let capitalGrowthExp: number | null = null;
+
+            if (prev) {
+                capitalGrowthAct = sumBrokers;
+                
+                // For Exp calculation, we need prev's internal state
+                // Wait, simpler: use adjStart of prev
+                capitalGrowthExp = prev.adjStart * 1.025;
+
+                if (i === 1) {
+                    cumulativeTargetGrowth = prev.adjStart * 1.02;
+                } else {
+                    cumulativeTargetGrowth = ((prev.targetGrowth || 0) + prev.netCash) * 1.02;
+                }
             } else {
-                cumulativeTargetGrowth = ((prev.targetGrowth || 0) + prev.netCash) * 1.02;
+                cumulativeTargetGrowth = null;
             }
 
-            const dataPoint: any = {
+            computed.push({
                 date: row.label,
                 dateObj: row.dateObj,
                 netCash,
                 adjStart,
-                targetGrowth: i === 0 ? null : cumulativeTargetGrowth
-            };
-
-            // Add each broker's value as a data point
-            activeBrokerIds.forEach(bid => {
-                const bName = brokers.find(b => b.id === bid)?.name || 'Unknown';
-                dataPoint[bName] = row.brokerNavs[bid] || 0;
+                capitalGrowthAct,
+                capitalGrowthExp,
+                targetGrowth: cumulativeTargetGrowth
             });
-
-            computed.push(dataPoint);
         });
 
         // 2. Filter by Time Range
@@ -132,26 +121,14 @@ export default function NAVGrowthChart() {
         }
 
         return filtered;
-    }, [navEntries, brokers, timeRange]);
-
-    const activeBrokersList = useMemo(() => {
-        const brokerSet = new Set<string>();
-        chartData.forEach(entry => {
-            Object.keys(entry).forEach(key => {
-                if (!['date', 'dateObj', 'netCash', 'adjStart', 'targetGrowth'].includes(key)) {
-                    brokerSet.add(key);
-                }
-            });
-        });
-        return Array.from(brokerSet).sort();
-    }, [chartData]);
+    }, [navEntries, timeRange]);
 
     if (!navEntries || navEntries.length === 0) return null;
 
     return (
         <Card className="w-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base font-normal text-muted-foreground">NAV Tracker Growth</CardTitle>
+                <CardTitle className="text-base font-normal text-muted-foreground">Cumulative Capital Growth</CardTitle>
                 <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                     {(['3 Months', '6 Months', '12 Months', 'YTD', 'All Time'] as TimeRange[]).map((range) => (
                         <Button
@@ -186,18 +163,36 @@ export default function NAVGrowthChart() {
                             />
                             <Tooltip content={<CustomTooltip />} />
                             <Legend />
-                            {activeBrokersList.map((brokerName, index) => (
-                                <Line
-                                    key={brokerName}
-                                    type="monotone"
-                                    dataKey={brokerName}
-                                    stroke={BROKER_PALETTE[index % BROKER_PALETTE.length]}
-                                    strokeWidth={2}
-                                    dot={{ r: 3 }}
-                                    activeDot={{ r: 5 }}
-                                    connectNulls
-                                />
-                            ))}
+                            <Line
+                                type="monotone"
+                                dataKey="capitalGrowthAct"
+                                name="Capital Growth Actual"
+                                stroke="#10B981"
+                                strokeWidth={2}
+                                dot={{ r: 3 }}
+                                activeDot={{ r: 5 }}
+                                connectNulls
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="capitalGrowthExp"
+                                name="Capital Growth Exp (2.5%)"
+                                stroke="#3B82F6"
+                                strokeWidth={2}
+                                dot={{ r: 3 }}
+                                activeDot={{ r: 5 }}
+                                connectNulls
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="targetGrowth"
+                                name="Target (24% Annual)"
+                                stroke="#F59E0B"
+                                strokeWidth={2}
+                                strokeDasharray="5 5"
+                                dot={false}
+                                connectNulls
+                            />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
