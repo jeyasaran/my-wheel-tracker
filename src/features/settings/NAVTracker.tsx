@@ -79,11 +79,14 @@ export default function NAVTracker() {
     const handleEdit = (row: (typeof computedRows)[number]) => {
         // Find the first broker entry for this month to populate the broker selector
         const firstEntry = navEntries.find(e => e.monthYear === row.monthYear);
-        if (firstEntry) setBrokerId(firstEntry.brokerId);
+        handleEditSpecific(row, firstEntry?.brokerId || (brokers.length > 0 ? brokers[0].id : ''));
+    };
+
+    const handleEditSpecific = (row: (typeof computedRows)[number], specificBrokerId: string) => {
+        setBrokerId(specificBrokerId);
         setMonthYear(row.monthYear);
-        // Sum of broker NAVs for the primary broker; use entire row sumBrokers for single-broker setups
-        const brokerEntry = navEntries.find(e => e.monthYear === row.monthYear && e.brokerId === (firstEntry?.brokerId ?? ''));
-        setNavValue(brokerEntry ? String(brokerEntry.navValue) : String(row.sumBrokers));
+        const brokerEntry = navEntries.find(e => e.monthYear === row.monthYear && e.brokerId === specificBrokerId);
+        setNavValue(brokerEntry ? String(brokerEntry.navValue) : '');
         setCashIn(row.cashIn > 0 ? String(row.cashIn) : '');
         setCashOut(row.cashOut > 0 ? String(row.cashOut) : '');
         setEditingMonthYear(row.monthYear);
@@ -244,7 +247,7 @@ export default function NAVTracker() {
                             >
                                 {isSubmitting ? 'Saving…' : editingMonthYear ? 'Update' : 'Add'}
                             </Button>
-                            {editingMonthYear && (
+                            {editingMonthYear ? (
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -258,6 +261,20 @@ export default function NAVTracker() {
                                     className="whitespace-nowrap"
                                 >
                                     Cancel
+                                </Button>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setNavValue('');
+                                        setCashIn('');
+                                        setCashOut('');
+                                        setError(null);
+                                    }}
+                                    className="whitespace-nowrap text-gray-400 hover:text-gray-600"
+                                >
+                                    Clear
                                 </Button>
                             )}
                         </div>
@@ -297,7 +314,22 @@ export default function NAVTracker() {
                                         <td className="px-4 py-3 whitespace-nowrap font-black text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-900 z-10">{row.label}</td>
                                         {activeBrokers.map(b => (
                                             <td key={b.id} className="px-4 py-3 whitespace-nowrap text-right font-semibold tabular-nums text-gray-700 dark:text-gray-300">
-                                                {row.brokerNavs[b.id] != null ? fmt(row.brokerNavs[b.id]) : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                                                <div className="flex items-center justify-end gap-1.5 group">
+                                                    {row.brokerNavs[b.id] != null ? (
+                                                        <>
+                                                            <span>{fmt(row.brokerNavs[b.id])}</span>
+                                                            <button
+                                                                onClick={() => handleEditSpecific(row, b.id)}
+                                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-amber-500"
+                                                                title={`Edit ${b.name} entry`}
+                                                            >
+                                                                <Pencil className="w-3 h-3" />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-gray-300 dark:text-gray-600">—</span>
+                                                    )}
+                                                </div>
                                             </td>
                                         ))}
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">
