@@ -144,11 +144,16 @@ export default function NAVTracker() {
             capitalGrowthExp = prevAdj * 1.025;
             netGrowthRate = prevAdj > 0 ? (sumBrokers / prevAdj) - 1 : null;
 
-            // Formula: sum(Net cash of prev month, prev month of Target growth)*1.02
-            cumulativeTargetGrowth = (prev.netCash + cumulativeTargetGrowth) * 1.02;
+            if (i === 1) {
+                // Row 1 (2nd row): 1.02 * Prev month Adj start
+                cumulativeTargetGrowth = prev.adjStart * 1.02;
+            } else {
+                // Row 2+ (3rd row onwards): sum(Net cash of prev month, prev month of Target growth)*1.02
+                cumulativeTargetGrowth = ((prev.targetGrowth || 0) + prev.netCash) * 1.02;
+            }
         } else {
-            // Formula for first row: 1.02*Adj start
-            cumulativeTargetGrowth = adjStart * 1.02;
+            // Row 0 (1st row): Leave empty
+            cumulativeTargetGrowth = 0; // Will be treated as null/empty if handled in UI or set to null
         }
 
         computedRows.push({
@@ -160,7 +165,7 @@ export default function NAVTracker() {
             capitalGrowthAct,
             capitalGrowthExp,
             netGrowthRate,
-            targetGrowth: cumulativeTargetGrowth
+            targetGrowth: i === 0 ? null : cumulativeTargetGrowth
         });
     });
 
@@ -377,7 +382,7 @@ export default function NAVTracker() {
                                             )}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-black text-amber-600 dark:text-amber-500">
-                                            {fmt(row.targetGrowth)}
+                                            {row.targetGrowth != null ? fmt(row.targetGrowth) : <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <div className="inline-flex items-center gap-1">
