@@ -3,7 +3,7 @@ import { useTradeStore, type NavEntry } from '../../hooks/useTradeStore';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Trash2, LineChart, PlusCircle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Trash2, LineChart, PlusCircle, TrendingUp, TrendingDown, Minus, Pencil } from 'lucide-react';
 import { format, parse } from 'date-fns';
 
 const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -29,6 +29,7 @@ export default function NAVTracker() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [editingMonthYear, setEditingMonthYear] = useState<string | null>(null);
 
     // Always pick the first broker if nothing explicitly selected
     const resolvedBrokerId = brokerId || (brokers.length > 0 ? brokers[0].id : '');
@@ -57,6 +58,7 @@ export default function NAVTracker() {
             setNavValue('');
             setCashIn('');
             setCashOut('');
+            setEditingMonthYear(null);
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (e: any) {
@@ -72,6 +74,23 @@ export default function NAVTracker() {
         } catch (e: any) {
             setError(e?.message ?? 'Failed to delete entry.');
         }
+    };
+
+    const handleEdit = (row: (typeof computedRows)[number]) => {
+        // Find the first broker entry for this month to populate the broker selector
+        const firstEntry = navEntries.find(e => e.monthYear === row.monthYear);
+        if (firstEntry) setBrokerId(firstEntry.brokerId);
+        setMonthYear(row.monthYear);
+        // Sum of broker NAVs for the primary broker; use entire row sumBrokers for single-broker setups
+        const brokerEntry = navEntries.find(e => e.monthYear === row.monthYear && e.brokerId === (firstEntry?.brokerId ?? ''));
+        setNavValue(brokerEntry ? String(brokerEntry.navValue) : String(row.sumBrokers));
+        setCashIn(row.cashIn > 0 ? String(row.cashIn) : '');
+        setCashOut(row.cashOut > 0 ? String(row.cashOut) : '');
+        setEditingMonthYear(row.monthYear);
+        setError(null);
+        setSuccess(false);
+        // Scroll to form
+        document.getElementById('nav-entry-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     // --- Build table rows ---
@@ -148,10 +167,12 @@ export default function NAVTracker() {
             )}
 
             {/* Form — NO <form> wrapper to avoid HTML5 validation blocking submit */}
-            <Card className="p-6">
+            <Card id="nav-entry-form" className={`p-6 transition-all ${editingMonthYear ? 'ring-2 ring-amber-400 dark:ring-amber-500' : ''}`}>
                 <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
-                    <PlusCircle className="w-4 h-4 text-blue-500" />
-                    Add Monthly NAV Entry
+                    {editingMonthYear
+                        ? <><Pencil className="w-4 h-4 text-amber-500" /> Edit Entry — {format(parse(editingMonthYear, 'yyyy-MM', new Date()), 'MMM yyyy')}</>
+                        : <><PlusCircle className="w-4 h-4 text-blue-500" /> Add Monthly NAV Entry</>
+                    }
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                     {/* Month */}
@@ -219,10 +240,26 @@ export default function NAVTracker() {
                                 type="button"
                                 onClick={handleAdd}
                                 disabled={isSubmitting}
-                                className="whitespace-nowrap"
+                                className={`whitespace-nowrap ${editingMonthYear ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
                             >
-                                {isSubmitting ? 'Saving…' : 'Add'}
+                                {isSubmitting ? 'Saving…' : editingMonthYear ? 'Update' : 'Add'}
                             </Button>
+                            {editingMonthYear && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setEditingMonthYear(null);
+                                        setNavValue('');
+                                        setCashIn('');
+                                        setCashOut('');
+                                        setError(null);
+                                    }}
+                                    className="whitespace-nowrap"
+                                >
+                                    Cancel
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -251,7 +288,7 @@ export default function NAVTracker() {
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Cap Growth Actual</th>
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Cap Growth Exp (2.5%)</th>
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Net Growth Rate</th>
-                                    <th className="px-4 py-3 text-right">Del</th>
+                                    <th className="px-4 py-3 text-right" colSpan={2}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -288,13 +325,26 @@ export default function NAVTracker() {
                                             )}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
-                                            <button
-                                                onClick={() => handleDelete(row.entryIds)}
-                                                className="text-gray-300 hover:text-rose-500 dark:text-gray-600 dark:hover:text-rose-400 transition-colors p-1"
-                                                title="Delete all entries for this month"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="inline-flex items-center gap-1">
+                                                <button
+                                                    onClick={() => handleEdit(row)}
+                                                    className={`transition-colors p-1 rounded ${
+                                                        editingMonthYear === row.monthYear
+                                                            ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20'
+                                                            : 'text-gray-300 hover:text-amber-500 dark:text-gray-600 dark:hover:text-amber-400'
+                                                    }`}
+                                                    title="Edit entries for this month"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(row.entryIds)}
+                                                    className="text-gray-300 hover:text-rose-500 dark:text-gray-600 dark:hover:text-rose-400 transition-colors p-1 rounded"
+                                                    title="Delete all entries for this month"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
