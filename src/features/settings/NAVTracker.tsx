@@ -124,11 +124,14 @@ export default function NAVTracker() {
 
     const sortedRows = [...monthMap.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-    const computedRows = sortedRows.map(([monthYear, row], i) => {
+    const computedRows: any[] = [];
+    let cumulativeTargetGrowth = 0;
+
+    sortedRows.forEach(([monthYear, row], i) => {
         const sumBrokers = activeBrokerIds.reduce((s, bid) => s + (row.brokerNavs[bid] ?? 0), 0);
         const netCash = row.cashIn - row.cashOut;
         const adjStart = sumBrokers + netCash;
-        const prev = i > 0 ? sortedRows[i - 1][1] : null;
+        const prev = i > 0 ? computedRows[i - 1] : null;
 
         let capitalGrowthAct: number | null = null;
         let capitalGrowthExp: number | null = null;
@@ -140,9 +143,25 @@ export default function NAVTracker() {
             capitalGrowthAct = sumBrokers;
             capitalGrowthExp = prevAdj * 1.025;
             netGrowthRate = prevAdj > 0 ? (sumBrokers / prevAdj) - 1 : null;
+
+            // Formula: sum(Net cash of prev month, prev month of Target growth)*1.02
+            cumulativeTargetGrowth = (prev.netCash + cumulativeTargetGrowth) * 1.02;
+        } else {
+            // Formula for first row: 1.02*Adj start
+            cumulativeTargetGrowth = adjStart * 1.02;
         }
 
-        return { monthYear, ...row, sumBrokers, netCash, adjStart, capitalGrowthAct, capitalGrowthExp, netGrowthRate };
+        computedRows.push({
+            monthYear,
+            ...row,
+            sumBrokers,
+            netCash,
+            adjStart,
+            capitalGrowthAct,
+            capitalGrowthExp,
+            netGrowthRate,
+            targetGrowth: cumulativeTargetGrowth
+        });
     });
 
     return (
@@ -305,6 +324,7 @@ export default function NAVTracker() {
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Cap Growth Actual</th>
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Cap Growth Exp (2.5%)</th>
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Net Growth Rate</th>
+                                    <th className="px-4 py-3 whitespace-nowrap text-right text-amber-500">Target growth (24% NAV)</th>
                                     <th className="px-4 py-3 text-right" colSpan={2}>Actions</th>
                                 </tr>
                             </thead>
@@ -355,6 +375,9 @@ export default function NAVTracker() {
                                             ) : (
                                                 <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>
                                             )}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-black text-amber-600 dark:text-amber-500">
+                                            {fmt(row.targetGrowth)}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <div className="inline-flex items-center gap-1">
