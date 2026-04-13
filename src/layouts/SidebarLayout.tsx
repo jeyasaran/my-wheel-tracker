@@ -3,6 +3,7 @@ import { LayoutDashboard, List, Settings, Archive, DollarSign, TrendingUp, Palet
 import { cn } from '../lib/utils';
 import { useTradeStore } from '../hooks/useTradeStore';
 import { useState } from 'react';
+import { version } from '../../package.json';
 
 export function SidebarLayout() {
     const { loading } = useTradeStore();
@@ -218,7 +219,7 @@ export function SidebarLayout() {
                 <div className="p-4 border-t border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500">
                         <Settings className="h-4 w-4" />
-                        <span>v1.2.8</span>
+                        <span>v{version}</span>
                     </div>
                 </div>
             </aside>
