@@ -156,6 +156,15 @@ export default function NAVTracker() {
             cumulativeTargetGrowth = 0; // Will be treated as null/empty if handled in UI or set to null
         }
 
+        let cagr: number | null = null;
+        if (i >= 11) {
+            const initialAdjStart = computedRows[0].adjStart;
+            if (initialAdjStart > 0) {
+                const monthCount = i + 1;
+                cagr = Math.pow(sumBrokers / initialAdjStart, 12 / monthCount) - 1;
+            }
+        }
+
         computedRows.push({
             monthYear,
             ...row,
@@ -165,6 +174,7 @@ export default function NAVTracker() {
             capitalGrowthAct,
             capitalGrowthExp,
             netGrowthRate,
+            cagr,
             targetGrowth: i === 0 ? null : cumulativeTargetGrowth
         });
     });
@@ -329,6 +339,7 @@ export default function NAVTracker() {
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Cap Growth Actual</th>
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Cap Growth Exp (2.5%)</th>
                                     <th className="px-4 py-3 whitespace-nowrap text-right">Net Growth Rate</th>
+                                    <th className="px-4 py-3 whitespace-nowrap text-right text-amber-500">CAGR</th>
                                     <th className="px-4 py-3 whitespace-nowrap text-right text-amber-500">Target growth (24% NAV)</th>
                                     <th className="px-4 py-3 text-right" colSpan={2}>Actions</th>
                                 </tr>
@@ -380,6 +391,9 @@ export default function NAVTracker() {
                                             ) : (
                                                 <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>
                                             )}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-black text-amber-600 dark:text-amber-500">
+                                            {row.cagr != null ? fmtPct(row.cagr) : <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>}
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-black text-amber-600 dark:text-amber-500">
                                             {row.targetGrowth != null ? fmt(row.targetGrowth) : <span className="text-gray-300 dark:text-gray-600 text-xs italic">—</span>}
