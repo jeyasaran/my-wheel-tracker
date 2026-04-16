@@ -739,10 +739,10 @@ export default function TradeList() {
                                                         variant={
                                                             trade.status === 'OPEN' ? 'default' :
                                                                 trade.status === 'CLOSED' ? 'success' :
-                                                                    trade.status === 'ASSIGNED' ? 'warning' : 'error'
+                                                                    (trade.status === 'ASSIGNED' || trade.status === 'CALLED_AWAY') ? 'warning' : 'error'
                                                         }
                                                     >
-                                                        {trade.status}
+                                                        {trade.status === 'CALLED_AWAY' ? 'Called Away' : trade.status}
                                                     </Badge>
                                                 </td>
                                                 <td className="px-4 py-4 text-right">

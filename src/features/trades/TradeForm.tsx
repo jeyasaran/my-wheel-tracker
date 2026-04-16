@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/Input';
 import { useTradeStore } from '../../hooks/useTradeStore';
 
 type TradeFormMode = 'create' | 'edit' | 'close';
-type CloseOutcome = 'BTC' | 'EXPIRED' | 'ASSIGNED' | 'ROLLED';
+type CloseOutcome = 'BTC' | 'EXPIRED' | 'ASSIGNED' | 'ROLLED' | 'CALLED_AWAY';
 
 interface TradeFormProps {
     initialData?: Trade;
@@ -15,7 +15,7 @@ interface TradeFormProps {
 }
 
 export function TradeForm({ initialData, defaultValues, mode = 'create', onClose }: TradeFormProps) {
-    const { addTrade, updateTrade, addPosition, brokers } = useTradeStore();
+    const { addTrade, updateTrade, addPosition, brokers, closePosition } = useTradeStore();
 
     // Determine initial outcome if closing
     const [outcome, setOutcome] = useState<CloseOutcome>('BTC');
@@ -136,6 +136,13 @@ export function TradeForm({ initialData, defaultValues, mode = 'create', onClose
                 closeDate: prev.closeDate || prev.expirationDate || new Date().toISOString().split('T')[0],
                 closePrice: 0 // Assignment doesn't cost anything out of pocket for the option leg; premium is 100% profit
             }));
+        } else if (mode === 'close' && outcome === 'CALLED_AWAY') {
+            setFormData(prev => ({
+                ...prev,
+                status: 'CALLED_AWAY',
+                closeDate: prev.closeDate || prev.expirationDate || new Date().toISOString().split('T')[0],
+                closePrice: 0 // Called away means premium is kept, no closing cost for the option leg
+            }));
         }
         // TODO: Handle ROLLED later
     }, [outcome, mode, formData.expirationDate, formData.strikePrice]);
@@ -151,8 +158,8 @@ export function TradeForm({ initialData, defaultValues, mode = 'create', onClose
         }
 
         if (mode === 'close') {
-            if ((outcome === 'BTC' || outcome === 'ASSIGNED') && (formData.closePrice === undefined || formData.closePrice === null || !formData.closeDate)) {
-                alert(`Please enter ${outcome === 'BTC' ? 'Close' : 'Assignment'} Price and Date`);
+            if ((outcome === 'BTC' || outcome === 'ASSIGNED' || outcome === 'CALLED_AWAY') && (formData.closePrice === undefined || formData.closePrice === null || !formData.closeDate)) {
+                alert(`Please enter ${outcome === 'BTC' ? 'Close' : 'Assignment/Called Away'} Price and Date`);
                 return;
             }
             if (formData.closeDate && formData.expirationDate && new Date(formData.closeDate) > new Date(formData.expirationDate)) {
@@ -198,7 +205,7 @@ export function TradeForm({ initialData, defaultValues, mode = 'create', onClose
             premiumPrice: Number(formData.premiumPrice),
             contracts: Number(formData.contracts),
             closePrice: formData.closePrice ? Number(formData.closePrice) : undefined,
-            status: mode === 'close' ? (outcome === 'BTC' ? 'CLOSED' : outcome === 'EXPIRED' ? 'EXPIRED' : outcome === 'ASSIGNED' ? 'ASSIGNED' : 'CLOSED') : formData.status,
+            status: mode === 'close' ? (outcome === 'BTC' ? 'CLOSED' : outcome === 'EXPIRED' ? 'EXPIRED' : outcome === 'ASSIGNED' ? 'ASSIGNED' : outcome === 'CALLED_AWAY' ? 'CALLED_AWAY' : 'CLOSED') : formData.status,
             positionId: formData.positionId,
             brokerId: formData.brokerId || undefined,
             strategy: formData.strategy,
@@ -222,6 +229,12 @@ export function TradeForm({ initialData, defaultValues, mode = 'create', onClose
                 brokerId: formData.brokerId || undefined,
             });
         }
+        
+        // --- Auto-close position for called away calls ---
+        if (mode === 'close' && outcome === 'CALLED_AWAY' && formData.strategy === 'CC' && formData.positionId) {
+            closePosition(formData.positionId, Number(formData.strikePrice), formData.closeDate || formData.expirationDate || new Date().toISOString().split('T')[0]);
+        }
+        
         onClose();
     };
 
@@ -255,6 +268,7 @@ export function TradeForm({ initialData, defaultValues, mode = 'create', onClose
                             <option value="BTC">Buy to Close / Sell to Close</option>
                             <option value="EXPIRED">Expired Worthless</option>
                             <option value="ASSIGNED">Assigned</option>
+                            {formData.strategy === 'CC' && <option value="CALLED_AWAY">Called away</option>}
                             <option value="ROLLED">Rolled (Coming Soon)</option>
                         </select>
                     </div>
@@ -595,6 +609,24 @@ export function TradeForm({ initialData, defaultValues, mode = 'create', onClose
                     <div className="col-span-2 space-y-2">
                         <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded text-sm text-green-800 dark:text-green-300 border border-green-100 dark:border-green-800/30">
                             <strong>Assignment Info:</strong> The premium of <strong>${((formData.premiumPrice || 0) * (formData.contracts || 0) * 100).toLocaleString()}</strong> will be fully realized as profit. A new stock position will be opened at the strike price of <strong>${formData.strikePrice}</strong>.
+                        </div>
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                        <label className="text-sm font-medium">Assignment Date</label>
+                        <Input
+                            type="date"
+                            value={formData.closeDate || new Date().toISOString().split('T')[0]}
+                            onChange={(e) => setFormData({ ...formData, closeDate: e.target.value })}
+                            required
+                        />
+                    </div>
+                </div>
+            )}
+            {mode === 'close' && outcome === 'CALLED_AWAY' && (
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800 animate-in fade-in slide-in-from-top-2">
+                    <div className="col-span-2 space-y-2">
+                        <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded text-sm text-amber-800 dark:text-amber-300 border border-amber-100 dark:border-amber-800/30">
+                            <strong>Called Away Info:</strong> The premium of <strong>${((formData.premiumPrice || 0) * (formData.contracts || 0) * 100).toLocaleString()}</strong> will be fully realized as profit. The associated stock position will be closed at the strike price of <strong>${formData.strikePrice}</strong>.
                         </div>
                     </div>
                     <div className="col-span-2 space-y-2">

@@ -1,5 +1,5 @@
 export type OptionType = 'Put' | 'Call';
-export type TradeStatus = 'OPEN' | 'CLOSED' | 'ASSIGNED' | 'EXPIRED';
+export type TradeStatus = 'OPEN' | 'CLOSED' | 'ASSIGNED' | 'EXPIRED' | 'CALLED_AWAY';
 export type Strategy = 'CSP' | 'CC' | 'Vert';
 
 export interface Trade {
