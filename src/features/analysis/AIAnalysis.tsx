@@ -1,5 +1,6 @@
 import { useTradeStore } from '../../hooks/useTradeStore';
-import { Sparkles, Clock, AlertTriangle, CheckCircle, Globe, BarChart2, TrendingUp, Shield } from 'lucide-react';
+import { useDashboardStats } from '../../hooks/useDashboardStats';
+import { Sparkles, Clock, AlertTriangle, CheckCircle, Globe, BarChart2, TrendingUp, Shield, Lightbulb } from 'lucide-react';
 import type { Trade } from '../../types';
 import { differenceInDays, parseISO } from 'date-fns';
 
@@ -33,10 +34,63 @@ const EARNINGS_WINDOWS = [
 
 export default function AIAnalysis() {
     const { trades, marketPrices } = useTradeStore();
+    const stats = useDashboardStats(0, 1);
+    const utilizationPercent = stats.utilizationPercent;
 
     const openOptionTrades = trades.filter(t => t.status === 'OPEN' && !t.isArchived);
+    
+    // AI Trade Proposal Logic
+    const generateProposals = () => {
+        if (utilizationPercent >= 80) return [];
 
-    if (openOptionTrades.length === 0) {
+        const closedOptionTrades = trades.filter(t => t.status !== 'OPEN' && !t.isArchived && t.strategy !== 'Vert');
+        const isAggressive = closedOptionTrades.length > 10;
+        
+        const symbolCounts = closedOptionTrades.reduce((acc, t) => {
+            acc[t.symbol] = (acc[t.symbol] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        
+        const topSymbols = Object.entries(symbolCounts)
+            .sort((a,b) => b[1] - a[1])
+            .map(e => e[0])
+            .slice(0, 5);
+
+        const proposals = [];
+        const targets = topSymbols.length > 0 ? topSymbols : ['SPY', 'QQQ', 'AAPL', 'MSFT', 'AMZN'];
+
+        for (let i = 0; i < Math.min(5, targets.length); i++) {
+            const sym = targets[i];
+            const isHighBeta = ['MARA', 'RIOT', 'BTC', 'COIN', 'TSLA'].includes(sym);
+            const dte = isAggressive ? (isHighBeta ? 14 : 30) : 45;
+            
+            const contractType = 'CSP';
+            const deltaStr = isAggressive ? '30 Delta' : '15-20 Delta';
+            let rationale = "";
+
+            if (isAggressive && isHighBeta) {
+                rationale = `Given your aggressive profile and high-beta preference, a ${dte}-DTE CSP on ${sym} captures high IV premium. Target early exit at 50% profit.`;
+            } else if (isAggressive) {
+                rationale = `History suggests comfort with moderate risk. Selling a ${deltaStr} ${contractType} on ${sym} offers strong extrinsic value with acceptable assignment risk.`;
+            } else {
+                rationale = `Conservative profile favored. A ${dte}-DTE ${contractType} on ${sym} around ${deltaStr} provides steady theta decay while keeping assignment risk mathematically low.`;
+            }
+
+            proposals.push({
+                id: `prop-${i}`,
+                symbol: sym,
+                type: contractType,
+                dte,
+                strikeInfo: `OTM (${deltaStr})`,
+                rationale
+            });
+        }
+        return proposals;
+    };
+
+    const proposals = generateProposals();
+
+    if (openOptionTrades.length === 0 && proposals.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
                 <Sparkles className="w-12 h-12 mb-4 text-blue-400" />
@@ -78,6 +132,51 @@ export default function AIAnalysis() {
                     </div>
                 </div>
             </div>
+
+            {/* AI Trade Proposals Card */}
+            {utilizationPercent < 80 && proposals.length > 0 && (
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Lightbulb className="w-8 h-8 text-teal-200" />
+                            <div>
+                                <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                                    AI Trade Proposals
+                                </h2>
+                                <p className="text-emerald-100 text-sm">Capital utilization is at <span className="font-bold underline decoration-emerald-300 underline-offset-2">{utilizationPercent.toFixed(1)}%</span>. Deploying excess cash according to your historical profile.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                            {proposals.map(prop => (
+                                <div key={prop.id} className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-teal-900/20">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg font-black tracking-widest">{prop.symbol}</span>
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-emerald-100/20 text-emerald-100 border border-emerald-100/30">
+                                                {prop.type}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs font-bold text-teal-200 bg-teal-900/40 px-2 py-1 rounded shadow-sm border border-teal-800/30">
+                                            {prop.dte} DTE
+                                        </span>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                                            <span className="text-[10px] text-emerald-100/70 font-black uppercase tracking-widest block">Target Strike</span>
+                                            <span className="text-xs font-bold text-emerald-50">{prop.strikeInfo}</span>
+                                        </div>
+                                        <p className="text-[11px] text-emerald-50/90 leading-relaxed italic line-clamp-4">
+                                            "{prop.rationale}"
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 gap-8">
                 {openOptionTrades.map(trade => (
