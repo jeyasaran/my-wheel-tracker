@@ -39,39 +39,55 @@ export default function AIAnalysis() {
 
     const openOptionTrades = trades.filter(t => t.status === 'OPEN' && !t.isArchived);
     
+    // Mock prices for generating realistic strikes when real market prices aren't loaded for new tickers
+    const mockPrices = {
+        NVDA: 135.50,
+        TSLA: 245.20,
+        MSTR: 1450.00,
+        COIN: 285.50,
+        RIOT: 12.80,
+        SPY: 535.40,
+        QQQ: 460.75,
+        AAPL: 225.30,
+        MSFT: 440.00,
+        COST: 820.50
+    };
+
+    const getSpotPrice = (sym: string) => marketPrices[sym] || mockPrices[sym as keyof typeof mockPrices] || 100.00;
+
     // AI Trade Proposal Logic
     const generateProposals = () => {
         const closedOptionTrades = trades.filter(t => t.status !== 'OPEN' && !t.isArchived && t.strategy !== 'Vert');
         const isAggressive = closedOptionTrades.length > 10;
         
-        const symbolCounts = closedOptionTrades.reduce((acc, t) => {
-            acc[t.symbol] = (acc[t.symbol] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const topSymbols = Object.entries(symbolCounts)
-            .sort((a,b) => b[1] - a[1])
-            .map(e => e[0])
-            .slice(0, 5);
+        const targets = isAggressive 
+            ? ['NVDA', 'TSLA', 'MSTR', 'COIN', 'RIOT'] 
+            : ['SPY', 'QQQ', 'AAPL', 'MSFT', 'COST'];
 
         const proposals = [];
-        const targets = topSymbols.length > 0 ? topSymbols : ['SPY', 'QQQ', 'AAPL', 'MSFT', 'AMZN'];
-
+        
         for (let i = 0; i < Math.min(5, targets.length); i++) {
             const sym = targets[i];
-            const isHighBeta = ['MARA', 'RIOT', 'BTC', 'COIN', 'TSLA'].includes(sym);
-            const dte = isAggressive ? (isHighBeta ? 14 : 30) : 45;
+            const spotPrice = getSpotPrice(sym);
+            const isHighBeta = ['NVDA', 'TSLA', 'MSTR', 'COIN', 'RIOT', 'MARA', 'BTC'].includes(sym);
+            const dte = isHighBeta ? 14 : 45;
             
             const contractType = 'CSP';
-            const deltaStr = isAggressive ? '30 Delta' : '15-20 Delta';
+            const offsetMultiplier = isHighBeta ? 0.85 : 0.95;
+            
+            // Calculate a clean strike: round to nearest 0.5 or 1 or 5 depending on price
+            let exactStrike = spotPrice * offsetMultiplier;
+            if (exactStrike > 500) exactStrike = Math.round(exactStrike / 5) * 5;
+            else if (exactStrike > 100) exactStrike = Math.round(exactStrike);
+            else exactStrike = Math.round(exactStrike * 2) / 2;
+
+            const deltaApprox = Math.round((1 - offsetMultiplier) * 100 + (isHighBeta ? 5 : -5));
             let rationale = "";
 
-            if (isAggressive && isHighBeta) {
-                rationale = `Given your aggressive profile and high-beta preference, a ${dte}-DTE CSP on ${sym} captures high IV premium. Target early exit at 50% profit.`;
-            } else if (isAggressive) {
-                rationale = `History suggests comfort with moderate risk. Selling a ${deltaStr} ${contractType} on ${sym} offers strong extrinsic value with acceptable assignment risk.`;
+            if (isAggressive) {
+                rationale = `Selling a ${dte}-DTE ${contractType} at $${exactStrike.toFixed(2)} on heavily-traded ${sym}. Given the elevated implied volatility environment, targeting ~${deltaApprox} delta captures asymmetric risk premium. Look to buy-to-close at 50% max profit.`;
             } else {
-                rationale = `Conservative profile favored. A ${dte}-DTE ${contractType} on ${sym} around ${deltaStr} provides steady theta decay while keeping assignment risk mathematically low.`;
+                rationale = `Deploying capital into ${sym} ${contractType} with ${dte} DTE. By setting the strike conservatively at $${exactStrike.toFixed(2)}, we construct a structural theta-capture position. If assigned, the cost basis is highly advantageous.`;
             }
 
             proposals.push({
@@ -79,7 +95,9 @@ export default function AIAnalysis() {
                 symbol: sym,
                 type: contractType,
                 dte,
-                strikeInfo: `OTM (${deltaStr})`,
+                strikePrice: exactStrike,
+                spotPrice,
+                deltaApprox,
                 rationale
             });
         }
@@ -149,31 +167,46 @@ export default function AIAnalysis() {
                     </div>
 
                     {utilizationPercent < 80 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                            {proposals.map(prop => (
-                                <div key={prop.id} className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-teal-900/20">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-lg font-black tracking-widest">{prop.symbol}</span>
-                                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-emerald-100/20 text-emerald-100 border border-emerald-100/30">
-                                                {prop.type}
-                                            </span>
-                                        </div>
-                                        <span className="text-xs font-bold text-teal-200 bg-teal-900/40 px-2 py-1 rounded shadow-sm border border-teal-800/30">
-                                            {prop.dte} DTE
-                                        </span>
-                                    </div>
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center pb-2 border-b border-white/10">
-                                            <span className="text-[10px] text-emerald-100/70 font-black uppercase tracking-widest block">Target Strike</span>
-                                            <span className="text-xs font-bold text-emerald-50">{prop.strikeInfo}</span>
-                                        </div>
-                                        <p className="text-[11px] text-emerald-50/90 leading-relaxed italic line-clamp-4">
-                                            "{prop.rationale}"
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="overflow-x-auto mt-6 bg-white/5 rounded-xl border border-white/10 shadow-inner">
+                            <table className="w-full text-left text-sm text-white">
+                                <thead className="text-xs uppercase bg-teal-900/50 text-teal-100 border-b border-white/10">
+                                    <tr>
+                                        <th className="px-5 py-4 font-black tracking-widest whitespace-nowrap">Asset</th>
+                                        <th className="px-5 py-4 font-black tracking-widest whitespace-nowrap">Target Strike</th>
+                                        <th className="px-5 py-4 font-black tracking-widest whitespace-nowrap">Duration</th>
+                                        <th className="px-5 py-4 font-black tracking-widest min-w-[300px]">Strategist Rationale</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {proposals.map(prop => (
+                                        <tr key={prop.id} className="hover:bg-white/5 transition-colors duration-200">
+                                            <td className="px-5 py-4 whitespace-nowrap align-top">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-lg font-black tracking-widest">{prop.symbol}</span>
+                                                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-emerald-400/20 text-emerald-100 border border-emerald-400/30">
+                                                            {prop.type}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[10px] text-teal-200 uppercase font-bold tracking-widest">Spot: ${prop.spotPrice.toFixed(2)}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap align-top space-y-1">
+                                                <span className="text-base font-black flex items-center gap-1">${prop.strikePrice.toFixed(2)}</span>
+                                                <span className="text-[10px] text-emerald-100/70 uppercase tracking-widest block font-bold">~{prop.deltaApprox} Delta</span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap align-top">
+                                                <span className="px-2.5 py-1 rounded-md text-xs font-black shadow-sm tracking-widest bg-emerald-900/60 text-emerald-100 border border-emerald-700/50">
+                                                    {prop.dte} DTE
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 align-top text-xs leading-relaxed text-emerald-50/90 italic">
+                                                "{prop.rationale}"
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
