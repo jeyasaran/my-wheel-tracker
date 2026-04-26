@@ -41,8 +41,6 @@ export default function AIAnalysis() {
     
     // AI Trade Proposal Logic
     const generateProposals = () => {
-        if (utilizationPercent >= 80) return [];
-
         const closedOptionTrades = trades.filter(t => t.status !== 'OPEN' && !t.isArchived && t.strategy !== 'Vert');
         const isAggressive = closedOptionTrades.length > 10;
         
@@ -134,20 +132,23 @@ export default function AIAnalysis() {
             </div>
 
             {/* AI Trade Proposals Card */}
-            {utilizationPercent < 80 && proposals.length > 0 && (
-                <div className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-4">
-                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Lightbulb className="w-8 h-8 text-teal-200" />
-                            <div>
-                                <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                                    AI Trade Proposals
-                                </h2>
-                                <p className="text-emerald-100 text-sm">Capital utilization is at <span className="font-bold underline decoration-emerald-300 underline-offset-2">{utilizationPercent.toFixed(1)}%</span>. Deploying excess cash according to your historical profile.</p>
-                            </div>
+            <div className={`bg-gradient-to-br ${utilizationPercent < 80 ? 'from-emerald-500 to-teal-700' : 'from-slate-600 to-slate-800'} rounded-2xl p-8 text-white shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-4`}>
+                <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-6">
+                        {utilizationPercent < 80 ? <Lightbulb className="w-8 h-8 text-teal-200" /> : <Shield className="w-8 h-8 text-slate-300" />}
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                                {utilizationPercent < 80 ? 'AI Trade Proposals' : 'Capital Conservation Mode'}
+                            </h2>
+                            <p className={`${utilizationPercent < 80 ? 'text-emerald-100' : 'text-slate-200'} text-sm`}>
+                                Capital utilization is at <span className="font-bold underline decoration-white/50 underline-offset-2">{isNaN(utilizationPercent) ? '0' : utilizationPercent.toFixed(1)}%</span>. 
+                                {utilizationPercent < 80 ? ' Deploying excess cash according to your historical profile.' : ' Utilization >= 80%. Suggesting no new trades to maintain cash.'}
+                            </p>
                         </div>
+                    </div>
 
+                    {utilizationPercent < 80 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                             {proposals.map(prop => (
                                 <div key={prop.id} className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-teal-900/20">
@@ -174,9 +175,9 @@ export default function AIAnalysis() {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
 
             <div className="grid grid-cols-1 gap-8">
                 {openOptionTrades.map(trade => (
