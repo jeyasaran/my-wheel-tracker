@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { parseISO, subMonths } from 'date-fns';
 import type { Trade, TradeMetrics, CashTransaction, StockPosition, Broker } from '../types';
 import { fetchLastClosePrice } from '../services/marketService';
 
@@ -182,6 +183,25 @@ export function TradeProvider({ children }: { children: ReactNode }) {
 
     const archiveTrade = (id: string) => updateTrade(id, { isArchived: true });
     const restoreTrade = (id: string) => updateTrade(id, { isArchived: false });
+
+    // Auto-archive closed trades older than 6 months
+    useEffect(() => {
+        if (!loading && trades.length > 0) {
+            const sixMonthsAgo = subMonths(new Date(), 6);
+            
+            const toArchive = trades.filter(t => 
+                !t.isArchived && 
+                t.status !== 'OPEN' && 
+                parseISO(t.openDate) < sixMonthsAgo
+            );
+
+            if (toArchive.length > 0) {
+                console.log(`Auto-archiving ${toArchive.length} trades older than 6 months from open date...`);
+                toArchive.forEach(t => archiveTrade(t.id));
+            }
+        }
+    }, [loading]); // Scans once per fetch cycle
+
 
     const deleteTrade = async (id: string) => {
         try {
