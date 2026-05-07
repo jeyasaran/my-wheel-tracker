@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { format, parse, subMonths, isAfter, startOfMonth } from 'date-fns';
+import { format, parse, subMonths, isBefore, startOfMonth } from 'date-fns';
 import { useTradeStore } from '../../hooks/useTradeStore';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -107,17 +107,17 @@ export default function CumulativeCapitalGrowthChart() {
         let filtered = computed;
         const now = new Date();
         if (timeRange === '3 Months') {
-            const cutoff = subMonths(now, 3);
-            filtered = computed.filter(d => isAfter(d.dateObj, cutoff));
+            const cutoff = startOfMonth(subMonths(now, 3));
+            filtered = computed.filter(d => !isBefore(d.dateObj, cutoff));
         } else if (timeRange === '6 Months') {
-            const cutoff = subMonths(now, 6);
-            filtered = computed.filter(d => isAfter(d.dateObj, cutoff));
+            const cutoff = startOfMonth(subMonths(now, 6));
+            filtered = computed.filter(d => !isBefore(d.dateObj, cutoff));
         } else if (timeRange === '12 Months') {
-            const cutoff = subMonths(now, 12);
-            filtered = computed.filter(d => isAfter(d.dateObj, cutoff));
+            const cutoff = startOfMonth(subMonths(now, 12));
+            filtered = computed.filter(d => !isBefore(d.dateObj, cutoff));
         } else if (timeRange === 'YTD') {
             const cutoff = startOfMonth(new Date(now.getFullYear(), 0, 1));
-            filtered = computed.filter(d => !isAfter(cutoff, d.dateObj));
+            filtered = computed.filter(d => !isBefore(d.dateObj, cutoff));
         }
 
         return filtered;
