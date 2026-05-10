@@ -16,7 +16,7 @@ export default function BrokerSettings() {
         if (!name.trim()) return;
 
         const newBroker: Broker = {
-            id: crypto.randomUUID(),
+            id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
             name: name.trim(),
             dateAdded: new Date().toISOString().split('T')[0],
             notes: notes.trim() || undefined

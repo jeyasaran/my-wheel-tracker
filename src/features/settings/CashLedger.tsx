@@ -24,7 +24,7 @@ export default function CashLedger() {
         if (!date) return;
 
         const newTransaction: CashTransaction = {
-            id: crypto.randomUUID(),
+            id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
             date,
             type,
             amount: Number(amount),

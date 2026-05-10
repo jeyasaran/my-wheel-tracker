@@ -35,7 +35,7 @@ export function PositionForm({ onClose, initialData }: PositionFormProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const positionData: StockPosition = {
-            id: initialData?.id || crypto.randomUUID(),
+            id: initialData?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)),
             symbol: formData.symbol.toUpperCase(),
             openDate: formData.openDate,
             buyPrice: parseFloat(formData.buyPrice),
