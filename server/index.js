@@ -150,7 +150,7 @@ app.get('/api/positions', (req, res) => {
 
 app.post('/api/positions', (req, res) => {
     const { id, symbol, openDate, buyPrice, quantity, notes, status, sellPrice, closeDate, brokerId } = req.body;
-    db.run('INSERT OR IGNORE INTO positions (id, symbol, openDate, buyPrice, quantity, notes, status, sellPrice, closeDate, brokerId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    db.run('INSERT INTO positions (id, symbol, openDate, buyPrice, quantity, notes, status, sellPrice, closeDate, brokerId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [id, symbol, openDate, buyPrice, quantity, notes, status, sellPrice, closeDate, brokerId],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });

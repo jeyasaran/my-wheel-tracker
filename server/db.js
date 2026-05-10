@@ -101,10 +101,44 @@ function initDb() {
             sellPrice REAL,
             closeDate TEXT,
             brokerId TEXT,
-            FOREIGN KEY (brokerId) REFERENCES brokers (id),
-            UNIQUE(symbol, openDate, buyPrice, quantity)
+            FOREIGN KEY (brokerId) REFERENCES brokers (id)
         )`);
 
+        // Migration: remove the over-restrictive UNIQUE constraint from positions
+        // (it blocked multiple assignments of the same ticker/strike on the same day)
+        db.all("SELECT sql FROM sqlite_master WHERE type='table' AND name='positions'", [], (err, rows) => {
+            if (err || !rows || rows.length === 0) return;
+            const schemaSql = rows[0].sql || '';
+            if (schemaSql.includes('UNIQUE(symbol')) {
+                console.log('Migration: removing multi-column UNIQUE constraint from positions table...');
+                db.serialize(() => {
+                    db.run('BEGIN TRANSACTION');
+                    db.run(`CREATE TABLE positions_new (
+                        id TEXT PRIMARY KEY,
+                        symbol TEXT NOT NULL,
+                        openDate TEXT NOT NULL,
+                        buyPrice REAL NOT NULL,
+                        quantity REAL NOT NULL,
+                        notes TEXT,
+                        status TEXT DEFAULT 'OPEN',
+                        sellPrice REAL,
+                        closeDate TEXT,
+                        brokerId TEXT
+                    )`);
+                    db.run('INSERT INTO positions_new SELECT id, symbol, openDate, buyPrice, quantity, notes, status, sellPrice, closeDate, brokerId FROM positions');
+                    db.run('DROP TABLE positions');
+                    db.run('ALTER TABLE positions_new RENAME TO positions');
+                    db.run('COMMIT', [], (err) => {
+                        if (err) {
+                            console.error('Migration error (positions UNIQUE constraint removal):', err.message);
+                            db.run('ROLLBACK');
+                        } else {
+                            console.log('Migration complete: positions UNIQUE constraint removed.');
+                        }
+                    });
+                });
+            }
+        });
         // Transactions table
         db.run(`CREATE TABLE IF NOT EXISTS transactions (
             id TEXT PRIMARY KEY,
