@@ -105,40 +105,40 @@ function initDb() {
         )`);
 
         // Migration: remove the over-restrictive UNIQUE constraint from positions
-        // (it blocked multiple assignments of the same ticker/strike on the same day)
-        db.all("SELECT sql FROM sqlite_master WHERE type='table' AND name='positions'", [], (err, rows) => {
-            if (err || !rows || rows.length === 0) return;
-            const schemaSql = rows[0].sql || '';
+        // Must NOT use nested db.serialize() or BEGIN TRANSACTION inside db.serialize()
+        db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='positions'", [], (err, row) => {
+            if (err || !row) return;
+            const schemaSql = row.sql || '';
             if (schemaSql.includes('UNIQUE(symbol')) {
                 console.log('Migration: removing multi-column UNIQUE constraint from positions table...');
-                db.serialize(() => {
-                    db.run('BEGIN TRANSACTION');
-                    db.run(`CREATE TABLE positions_new (
-                        id TEXT PRIMARY KEY,
-                        symbol TEXT NOT NULL,
-                        openDate TEXT NOT NULL,
-                        buyPrice REAL NOT NULL,
-                        quantity REAL NOT NULL,
-                        notes TEXT,
-                        status TEXT DEFAULT 'OPEN',
-                        sellPrice REAL,
-                        closeDate TEXT,
-                        brokerId TEXT
-                    )`);
-                    db.run('INSERT INTO positions_new SELECT id, symbol, openDate, buyPrice, quantity, notes, status, sellPrice, closeDate, brokerId FROM positions');
-                    db.run('DROP TABLE positions');
-                    db.run('ALTER TABLE positions_new RENAME TO positions');
-                    db.run('COMMIT', [], (err) => {
-                        if (err) {
-                            console.error('Migration error (positions UNIQUE constraint removal):', err.message);
-                            db.run('ROLLBACK');
-                        } else {
-                            console.log('Migration complete: positions UNIQUE constraint removed.');
-                        }
+                // Use a sequential chain of db.run callbacks to avoid nested transactions
+                db.run(`CREATE TABLE IF NOT EXISTS positions_new (
+                    id TEXT PRIMARY KEY,
+                    symbol TEXT NOT NULL,
+                    openDate TEXT NOT NULL,
+                    buyPrice REAL NOT NULL,
+                    quantity REAL NOT NULL,
+                    notes TEXT,
+                    status TEXT DEFAULT 'OPEN',
+                    sellPrice REAL,
+                    closeDate TEXT,
+                    brokerId TEXT
+                )`, [], (err) => {
+                    if (err) { console.error('Migration error (create positions_new):', err.message); return; }
+                    db.run('INSERT INTO positions_new SELECT id, symbol, openDate, buyPrice, quantity, notes, status, sellPrice, closeDate, brokerId FROM positions', [], (err) => {
+                        if (err) { console.error('Migration error (copy positions):', err.message); return; }
+                        db.run('DROP TABLE positions', [], (err) => {
+                            if (err) { console.error('Migration error (drop positions):', err.message); return; }
+                            db.run('ALTER TABLE positions_new RENAME TO positions', [], (err) => {
+                                if (err) { console.error('Migration error (rename positions_new):', err.message); return; }
+                                console.log('Migration complete: positions UNIQUE constraint removed.');
+                            });
+                        });
                     });
                 });
             }
         });
+
         // Transactions table
         db.run(`CREATE TABLE IF NOT EXISTS transactions (
             id TEXT PRIMARY KEY,
