@@ -11,6 +11,7 @@ import CashLedger from './features/settings/CashLedger';
 import ThemeSettings from './features/settings/ThemeSettings';
 import BrokerSettings from './features/settings/BrokerSettings';
 import NAVTracker from './features/settings/NAVTracker';
+import { ReportsPage } from './features/reports/ReportsPage';
 import { ThemeProvider } from './hooks/useTheme';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
             <Route path="/trades" element={<TradeList />} />
             <Route path="/positions" element={<PositionsList />} />
             <Route path="/analysis" element={<AIAnalysis />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/archive" element={<ArchiveList />} />
             <Route path="/settings/massive" element={<MassiveSettings />} />
             <Route path="/settings/cash-ledger" element={<CashLedger />} />

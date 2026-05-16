@@ -20,6 +20,8 @@ export interface Trade {
     isArchived?: boolean;
     positionId?: string;
     brokerId?: string;
+    leg2StrikePrice?: number;
+    leg2PremiumPrice?: number;
 }
 
 export interface TradeMetrics {
