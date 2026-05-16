@@ -44,35 +44,37 @@ export function useMonthlyReport(selectedDate: Date): MonthlyReportData {
             isSameMonth(parseISO(t.closeDate), selectedDate)
         );
 
+        const getTradePnL = (t: typeof trades[0]) => {
+            const premium = (t.premiumPrice || 0) * t.contracts * 100;
+            const cost = (t.closePrice || 0) * t.contracts * 100;
+            if (t.strategy === 'Vert') return premium + cost;
+            return t.side === 'BUY' ? (cost - premium) : (premium - cost);
+        };
+
         // --- Executive Summary Calculations ---
-        const totalRealizedPremium = closedTrades.reduce((sum, t) => {
-            const premium = t.premiumPrice * t.contracts * 100;
-            const closeCost = (t.closePrice || 0) * t.contracts * 100;
-            return sum + (premium - closeCost);
-        }, 0);
+        const totalRealizedPremium = closedTrades.reduce((sum, t) => sum + getTradePnL(t), 0);
 
         let totalProfitableTrades = 0;
         closedTrades.forEach(t => {
-            const premium = t.premiumPrice * t.contracts * 100;
-            const closeCost = (t.closePrice || 0) * t.contracts * 100;
-            if (premium - closeCost > 0) totalProfitableTrades++;
+            if (getTradePnL(t) > 0) totalProfitableTrades++;
         });
 
         const winRate = closedTrades.length > 0 ? (totalProfitableTrades / closedTrades.length) * 100 : 0;
 
         // --- NAV Calculations ---
-        const currentNavEntry = navEntries.find((n: any) => n.monthYear === monthYear);
+        const currentNavEntries = navEntries.filter((n: any) => n.monthYear === monthYear);
         const previousMonthDate = subMonths(selectedDate, 1);
         const previousMonthYear = format(previousMonthDate, 'yyyy-MM');
-        const previousNavEntry = navEntries.find((n: any) => n.monthYear === previousMonthYear);
+        const previousNavEntries = navEntries.filter((n: any) => n.monthYear === previousMonthYear);
 
-        const currentNav = currentNavEntry ? currentNavEntry.navValue : 0;
-        const previousNav = previousNavEntry ? previousNavEntry.navValue : 0;
+        // Sum across all brokers for the month
+        const currentNav = currentNavEntries.reduce((sum, n) => sum + (n.navValue || 0), 0);
+        const previousNav = previousNavEntries.reduce((sum, n) => sum + (n.navValue || 0), 0);
         
         // Accurate NAV Change accounting for cash ins/outs
         // NAV Change = (Current NAV - Cash In + Cash Out) - Previous NAV
-        const cashIn = currentNavEntry ? currentNavEntry.cashIn : 0;
-        const cashOut = currentNavEntry ? currentNavEntry.cashOut : 0;
+        const cashIn = currentNavEntries.reduce((sum, n) => sum + (n.cashIn || 0), 0);
+        const cashOut = currentNavEntries.reduce((sum, n) => sum + (n.cashOut || 0), 0);
         const adjustedCurrentNav = currentNav - cashIn + cashOut;
         
         const navChange = previousNav > 0 ? adjustedCurrentNav - previousNav : 0;
@@ -82,7 +84,7 @@ export function useMonthlyReport(selectedDate: Date): MonthlyReportData {
         const premiumByStrategy = { CSP: 0, CC: 0, Vert: 0, Other: 0 };
         
         closedTrades.forEach(t => {
-            const netPremium = (t.premiumPrice * t.contracts * 100) - ((t.closePrice || 0) * t.contracts * 100);
+            const netPremium = getTradePnL(t);
             if (t.strategy === 'CSP') premiumByStrategy.CSP += netPremium;
             else if (t.strategy === 'CC') premiumByStrategy.CC += netPremium;
             else if (t.strategy === 'Vert') premiumByStrategy.Vert += netPremium;
@@ -93,10 +95,9 @@ export function useMonthlyReport(selectedDate: Date): MonthlyReportData {
         const assignedPuts = shortPuts.filter(t => t.status === 'ASSIGNED');
         const assignmentRate = shortPuts.length > 0 ? (assignedPuts.length / shortPuts.length) * 100 : 0;
 
-        // Top Tickers
         const tickerPremiums: Record<string, number> = {};
         closedTrades.forEach(t => {
-            const netPremium = (t.premiumPrice * t.contracts * 100) - ((t.closePrice || 0) * t.contracts * 100);
+            const netPremium = getTradePnL(t);
             tickerPremiums[t.symbol] = (tickerPremiums[t.symbol] || 0) + netPremium;
         });
         
@@ -140,11 +141,12 @@ export function useMonthlyReport(selectedDate: Date): MonthlyReportData {
         });
 
         activeTrades.forEach(t => {
-            if (t.strategy === 'CSP') {
+            if (t.strategy === 'CSP' || (t.type === 'Put' && t.side === 'SELL' && t.strategy !== 'Vert')) {
                 capitalDeployedInOptions += t.strikePrice * t.contracts * 100;
             } else if (t.strategy === 'Vert') {
-                // Approximate collateral for credit spreads
-                const collateral = Math.abs(t.strikePrice - (t.leg2StrikePrice || 0)) * t.contracts * 100;
+                // Appropriate collateral for spread
+                const leg2 = t.leg2StrikePrice || t.strikePrice;
+                const collateral = Math.abs(t.strikePrice - leg2) * t.contracts * 100;
                 capitalDeployedInOptions += collateral;
             }
         });
