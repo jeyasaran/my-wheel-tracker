@@ -78,7 +78,8 @@ export default function BrokerIncomeChart() {
         let filtered = allClosed;
         if (timeRange !== 'All Time') {
             const monthsMap: Record<string, number> = { '3 Months': 3, '6 Months': 6, '12 Months': 12 };
-            const cutoffDate = subMonths(new Date(), monthsMap[timeRange]);
+            // Snap to start of month so we get exactly N calendar months (including current)
+            const cutoffDate = startOfMonth(subMonths(new Date(), monthsMap[timeRange] - 1));
             filtered = allClosed.filter(item => {
                 const dateStr = item.displayType === 'Stock' ? (item.closeDate || item.openDate) : item.openDate;
                 return new Date(dateStr) >= cutoffDate;
