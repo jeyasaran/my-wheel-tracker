@@ -56,26 +56,24 @@ export default function PerformanceAnalytics({ performance }: PerformanceAnalyti
     ];
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-500" />
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm h-full">
+            <h3 className="text-base font-bold mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
                 Performance Analytics
                 <InfoTooltip content="A high-level summary of your trading performance over the selected period. Win rate is the percentage of profitable trades. Profit factor is the ratio of gross profit to gross loss." />
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 gap-4">
                 {metrics.map((m, i) => (
-                    <div key={i} className="flex flex-col">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className={`p-2 rounded-lg ${m.bgColor}`}>
-                                <m.icon className={`w-5 h-5 ${m.color}`} />
+                    <div key={i} className={`flex flex-col p-3 rounded-xl ${m.bgColor}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className={`p-1.5 rounded-lg bg-white/60 dark:bg-gray-900/40`}>
+                                <m.icon className={`w-4 h-4 ${m.color}`} />
                             </div>
-                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{m.label}</span>
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 leading-tight">{m.label}</span>
                         </div>
-                        <div className="flex flex-col pl-11">
-                            <span className="text-2xl font-bold tracking-tight">{m.value}</span>
-                            <span className="text-xs text-gray-400 mt-1">{m.subValue}</span>
-                        </div>
+                        <span className="text-xl font-bold tracking-tight">{m.value}</span>
+                        <span className="text-[11px] text-gray-400 mt-0.5 leading-tight">{m.subValue}</span>
                     </div>
                 ))}
             </div>

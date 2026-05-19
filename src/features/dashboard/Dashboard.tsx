@@ -35,14 +35,10 @@ export default function Dashboard() {
             />
 
             {/* Performance Analytics, Capital Utilization & Monthly Target */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1">
-                    <PerformanceAnalytics performance={stats.performance} />
-                </div>
-                <div className="lg:col-span-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <PerformanceAnalytics performance={stats.performance} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
                     <CapitalUtilization utilization={stats.utilizationPercent} />
-                </div>
-                <div className="lg:col-span-1">
                     <MonthlyTargetGauge />
                 </div>
             </div>
