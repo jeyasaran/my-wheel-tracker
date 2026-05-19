@@ -12,6 +12,7 @@ import BrokerIncomeChart from './BrokerIncomeChart';
 import NAVGrowthChart from './NAVGrowthChart';
 import CumulativeCapitalGrowthChart from './CumulativeCapitalGrowthChart';
 import WeeklyMetrics from './WeeklyMetrics';
+import MonthlyTargetGauge from './MonthlyTargetGauge';
 
 export default function Dashboard() {
     const [weekOffset, setWeekOffset] = useState(0);
@@ -33,13 +34,16 @@ export default function Dashboard() {
                 cspCollateral={stats.accountOverview.cspCollateral}
             />
 
-            {/* Performance Analytics & Capital Utilization */}
+            {/* Performance Analytics, Capital Utilization & Monthly Target */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-1">
                     <PerformanceAnalytics performance={stats.performance} />
                 </div>
                 <div className="lg:col-span-1">
                     <CapitalUtilization utilization={stats.utilizationPercent} />
+                </div>
+                <div className="lg:col-span-1">
+                    <MonthlyTargetGauge />
                 </div>
             </div>
 
