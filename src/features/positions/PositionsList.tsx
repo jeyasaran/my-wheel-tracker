@@ -9,7 +9,7 @@ import { Plus, Edit2, Trash2, ArrowRightLeft, ChevronDown, ChevronRight, HelpCir
 import type { StockPosition, Trade } from '../../types';
 
 export default function PositionsList() {
-    const { stockPositions, trades, marketPrices, brokers, deletePosition, closePosition } = useTradeStore();
+    const { stockPositions, trades, marketPrices, brokers, deletePosition, closePosition, deleteTrade } = useTradeStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
     const [editingPosition, setEditingPosition] = useState<StockPosition | undefined>(undefined);
@@ -88,6 +88,12 @@ export default function PositionsList() {
     const handleCloseTrade = (trade: Trade) => {
         setClosingTrade(trade);
         setIsCloseTradeModalOpen(true);
+    };
+
+    const handleDeleteTrade = (trade: Trade) => {
+        if (confirm(`Delete this ${trade.type === 'Call' ? 'Covered Call' : 'trade'} ($${trade.strikePrice} strike, opened ${trade.openDate})? This will remove it from the wheel position.`)) {
+            deleteTrade(trade.id);
+        }
     };
 
     const handleAddNew = () => {
@@ -343,15 +349,25 @@ export default function PositionsList() {
                                                                                             {realizedPnl !== null ? `$${realizedPnl.toFixed(2)}` : '—'}
                                                                                         </td>
                                                                                         <td className="px-4 py-2 text-right">
-                                                                                            {trade.status === 'OPEN' && (
+                                                                                            <div className="flex items-center justify-end gap-1">
+                                                                                                {trade.status === 'OPEN' && (
+                                                                                                    <Button
+                                                                                                        variant="ghost"
+                                                                                                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium px-2 py-1 h-auto text-xs"
+                                                                                                        onClick={() => handleCloseTrade(trade)}
+                                                                                                    >
+                                                                                                        Close
+                                                                                                    </Button>
+                                                                                                )}
                                                                                                 <Button
                                                                                                     variant="ghost"
-                                                                                                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium px-2 py-1 h-auto text-xs"
-                                                                                                    onClick={() => handleCloseTrade(trade)}
+                                                                                                    className="text-red-500 hover:text-red-600 px-1.5 py-1 h-auto"
+                                                                                                    onClick={() => handleDeleteTrade(trade)}
+                                                                                                    title="Remove from this wheel position"
                                                                                                 >
-                                                                                                    Close
+                                                                                                    <Trash2 className="h-3.5 w-3.5" />
                                                                                                 </Button>
-                                                                                            )}
+                                                                                            </div>
                                                                                         </td>
                                                                                     </tr>
                                                                                 );
