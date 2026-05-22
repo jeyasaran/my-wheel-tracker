@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils';
 import PositionPnLChart from './PositionPnLChart';
 import LeadersByPremium from './LeadersByPremium';
 import LeadersLaggards from './LeadersLaggards';
+import BrokerTradesCountChart from './BrokerTradesCountChart';
 
 type TimeRange = '1m' | '3m' | '6m' | 'ytd' | '12m' | 'all';
 
@@ -417,6 +418,7 @@ export default function Metrics() {
             <div className="mt-6 flex flex-col gap-6">
                 <LeadersByPremium />
                 <LeadersLaggards />
+                <BrokerTradesCountChart />
             </div>
         </>
     );
