@@ -5,11 +5,11 @@ import { Modal } from '../../components/ui/Modal';
 import { PositionForm } from './PositionForm';
 import { TradeForm } from '../trades/TradeForm';
 import { Input } from '../../components/ui/Input';
-import { Plus, Edit2, Trash2, ArrowRightLeft, ChevronDown, ChevronRight, HelpCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowRightLeft, ChevronDown, ChevronRight, HelpCircle, Link2Off } from 'lucide-react';
 import type { StockPosition, Trade } from '../../types';
 
 export default function PositionsList() {
-    const { stockPositions, trades, marketPrices, brokers, deletePosition, closePosition, deleteTrade } = useTradeStore();
+    const { stockPositions, trades, marketPrices, brokers, deletePosition, closePosition, deleteTrade, updateTrade } = useTradeStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
     const [editingPosition, setEditingPosition] = useState<StockPosition | undefined>(undefined);
@@ -27,6 +27,9 @@ export default function PositionsList() {
         const expectedContracts = Math.floor(pos.quantity / 100);
         return trades.filter(t => {
             if (t.type !== 'Call') return false;
+
+            // Skip trades explicitly unlinked from all positions
+            if ((t.positionId as string) === '__excluded__') return false;
 
             // Broker must match if set on the position
             if (pos.brokerId && t.brokerId !== pos.brokerId) return false;
@@ -93,6 +96,12 @@ export default function PositionsList() {
     const handleDeleteTrade = (trade: Trade) => {
         if (confirm(`Delete this ${trade.type === 'Call' ? 'Covered Call' : 'trade'} ($${trade.strikePrice} strike, opened ${trade.openDate})? This will remove it from the wheel position.`)) {
             deleteTrade(trade.id);
+        }
+    };
+
+    const handleUnlinkTrade = (trade: Trade) => {
+        if (confirm(`Unlink this Covered Call ($${trade.strikePrice} strike, opened ${trade.openDate}) from the wheel position?\n\nThe trade will remain on the Trades page but will no longer count toward Adj. Cost for this position.`)) {
+            updateTrade(trade.id, { positionId: '__excluded__' } as any);
         }
     };
 
@@ -361,9 +370,17 @@ export default function PositionsList() {
                                                                                                 )}
                                                                                                 <Button
                                                                                                     variant="ghost"
+                                                                                                    className="text-orange-500 hover:text-orange-600 px-1.5 py-1 h-auto"
+                                                                                                    onClick={() => handleUnlinkTrade(trade)}
+                                                                                                    title="Unlink from this wheel position (keeps trade on Trades page)"
+                                                                                                >
+                                                                                                    <Link2Off className="h-3.5 w-3.5" />
+                                                                                                </Button>
+                                                                                                <Button
+                                                                                                    variant="ghost"
                                                                                                     className="text-red-500 hover:text-red-600 px-1.5 py-1 h-auto"
                                                                                                     onClick={() => handleDeleteTrade(trade)}
-                                                                                                    title="Remove from this wheel position"
+                                                                                                    title="Permanently delete this trade"
                                                                                                 >
                                                                                                     <Trash2 className="h-3.5 w-3.5" />
                                                                                                 </Button>
