@@ -2,35 +2,73 @@ import { useTradeStore } from '../../hooks/useTradeStore';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { Sparkles, Clock, AlertTriangle, CheckCircle, Globe, BarChart2, TrendingUp, Shield, Lightbulb } from 'lucide-react';
 import type { Trade } from '../../types';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO, format } from 'date-fns';
 
-// 2026 Market Context Data
-const MARKET_CONTEXT = {
-    date: 'April 2026',
-    macro: {
+const MACRO_ENVIRONMENTS = [
+    {
+        fedRates: '4.0% - 4.25%',
+        inflation: 'Cooling towards target',
+        gdp: 'Steady at 2.1%',
+        sentiment: 'Bullish / Soft Landing',
+        geopolitics: {
+            primary: 'Elections & Trade Policy Focus',
+            energyImpact: 'Stable supply dynamics',
+            riskAssets: 'Favorable (Equities climbing)'
+        },
+        earnings: 'Guidance raised across tech sector',
+        riskLevel: 'LOW'
+    },
+    {
         fedRates: '3.5% - 3.75%',
-        inflation: 'Staying above 2.2% target',
-        gdp: 'Moderating toward 2.0%',
-        sentiment: 'Cautious / Resilience'
+        inflation: 'Sticky above 2.5% target',
+        gdp: 'Moderating toward 1.8%',
+        sentiment: 'Cautious / Resilience',
+        geopolitics: {
+            primary: 'Middle East conflict escalation',
+            energyImpact: 'Upward pressure on Oil/Gas',
+            riskAssets: 'Volatile (Safe-haven shift to USD/Gold)'
+        },
+        earnings: 'Valuation adjustments vs. fragile orders',
+        riskLevel: 'HIGH'
     },
-    geopolitics: {
-        primary: 'Middle East conflict escalation',
-        energyImpact: 'Upward pressure on Oil/Gas',
-        riskAssets: 'Volatile (Safe-haven shift to USD/Gold)'
-    },
-    earnings: {
-        status: 'Q1 Season Underway',
-        focus: 'Valuation adjustments vs. fragile orders'
+    {
+        fedRates: '3.0% - 3.25%',
+        inflation: 'Deflationary pressures emerging',
+        gdp: 'Slowing to 1.0%',
+        sentiment: 'Bearish / Hard Landing Fears',
+        geopolitics: {
+            primary: 'Global supply chain restructuring',
+            energyImpact: 'Demand destruction lowering prices',
+            riskAssets: 'Risk-Off (Bonds catching bids)'
+        },
+        earnings: 'Earnings downgrades pricing in',
+        riskLevel: 'ELEVATED'
     }
+];
+
+const RATIONALE_TEMPLATES: Record<string, string[]> = {
+    NVDA: ["Capitalizing on sustained AI infrastructure capex.", "Implied volatility remains rich due to semiconductor cyclicality."],
+    TSLA: ["Selling premium against EV margin volatility.", "Exploiting high implied volatility surrounding delivery estimates."],
+    MSTR: ["Harnessing structural premium from Bitcoin proxy volatility.", "Targeting aggressive theta decay in this high-beta asset."],
+    COIN: ["Volatility remains elevated alongside broader crypto market flows.", "Capturing premium during crypto consolidation phases."],
+    RIOT: ["Capitalizing on the asymmetric risk premium in Bitcoin mining equities.", "Elevated IV offers strong theta opportunities."],
+    SPY:  ["Constructing a structural theta-capture position against broad market stability.", "Selling premium to capture routine market fluctuations."],
+    QQQ:  ["Deploying capital to capture tech-sector beta decay.", "Conservative strike selection against top-heavy tech indices."],
+    AAPL: ["Capturing stable premium against hardware cyclicality and services growth.", "Selling theta in a historically lower-volatility mega-cap."],
+    MSFT: ["Leveraging software-as-a-service stability for reliable theta decay.", "Targeting conservative strikes on stable cloud growth."],
+    COST: ["Selling premium on consumer defensive resilience.", "Capturing low-risk theta on steady retail footprint."]
 };
 
-// Common Earnings Months (Approximations for high-beta tech)
-const EARNINGS_WINDOWS = [
-    { month: 0, delta: 25 }, // Jan 25
-    { month: 3, delta: 25 }, // Apr 25 (Current)
-    { month: 6, delta: 25 }, // Jul 25
-    { month: 9, delta: 25 }, // Oct 25
-];
+const getRationale = (symbol: string, dte: number, strike: number, contractType: string) => {
+    const templates = RATIONALE_TEMPLATES[symbol] || [
+        "Deploying capital into a high-probability structural trade.",
+        "Capturing elevated implied volatility for efficient theta decay."
+    ];
+    const monthIdx = new Date().getMonth();
+    const specificReason = templates[monthIdx % templates.length];
+    
+    return `Selling a ${dte}-DTE ${contractType} at $${strike.toFixed(2)} on ${symbol}. ${specificReason} Look to manage at 50% max profit.`;
+};
 
 export default function AIAnalysis() {
     const { trades, marketPrices } = useTradeStore();
@@ -39,6 +77,11 @@ export default function AIAnalysis() {
 
     const openOptionTrades = trades.filter(t => t.status === 'OPEN' && !t.isArchived);
     
+    // Dynamically pick the macro environment based on the current month
+    const currentDate = new Date();
+    const currentMonthLabel = format(currentDate, 'MMMM yyyy').toUpperCase();
+    const macroEnv = MACRO_ENVIRONMENTS[currentDate.getMonth() % MACRO_ENVIRONMENTS.length];
+
     // Mock prices for generating realistic strikes when real market prices aren't loaded for new tickers
     const mockPrices = {
         NVDA: 135.50,
@@ -70,7 +113,11 @@ export default function AIAnalysis() {
             const sym = targets[i];
             const spotPrice = getSpotPrice(sym);
             const isHighBeta = ['NVDA', 'TSLA', 'MSTR', 'COIN', 'RIOT', 'MARA', 'BTC'].includes(sym);
-            const dte = isHighBeta ? 14 : 45;
+            
+            // Randomize DTE slightly based on the month to make it feel dynamic
+            const baseDte = isHighBeta ? 14 : 45;
+            const dteModifier = (currentDate.getMonth() % 3) * 7; 
+            const dte = baseDte + dteModifier;
             
             const contractType = 'CSP';
             const offsetMultiplier = isHighBeta ? 0.85 : 0.95;
@@ -82,13 +129,7 @@ export default function AIAnalysis() {
             else exactStrike = Math.round(exactStrike * 2) / 2;
 
             const deltaApprox = Math.round((1 - offsetMultiplier) * 100 + (isHighBeta ? 5 : -5));
-            let rationale = "";
-
-            if (isAggressive) {
-                rationale = `Selling a ${dte}-DTE ${contractType} at $${exactStrike.toFixed(2)} on heavily-traded ${sym}. Given the elevated implied volatility environment, targeting ~${deltaApprox} delta captures asymmetric risk premium. Look to buy-to-close at 50% max profit.`;
-            } else {
-                rationale = `Deploying capital into ${sym} ${contractType} with ${dte} DTE. By setting the strike conservatively at $${exactStrike.toFixed(2)}, we construct a structural theta-capture position. If assigned, the cost basis is highly advantageous.`;
-            }
+            const rationale = getRationale(sym, dte, exactStrike, contractType);
 
             proposals.push({
                 id: `prop-${i}`,
@@ -124,7 +165,7 @@ export default function AIAnalysis() {
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 text-blue-100 mb-2">
                             <Globe className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-widest">{MARKET_CONTEXT.date} Outlook</span>
+                            <span className="text-xs font-bold uppercase tracking-widest">{currentMonthLabel} OUTLOOK</span>
                         </div>
                         <h2 className="text-3xl font-black tracking-tight flex items-center gap-3">
                             <Sparkles className="w-8 h-8 text-amber-300" />
@@ -132,18 +173,20 @@ export default function AIAnalysis() {
                         </h2>
                         <p className="text-blue-100 max-w-xl text-sm leading-relaxed">
                             Analyzing {openOptionTrades.length} positions against macro-economic stressors,
-                            geopolitical tensions in the Middle East, and your historical {(trades.filter(t => t.status === 'CLOSED').length > 10) ? 'aggressive' : 'conservative'} trading patterns.
+                            {macroEnv.geopolitics.primary.toLowerCase()}, and your historical {(trades.filter(t => t.status === 'CLOSED').length > 10) ? 'aggressive' : 'conservative'} trading patterns.
                         </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10">
                             <span className="text-[10px] font-bold text-blue-200 uppercase tracking-wider block mb-1">Risk Environment</span>
-                            <span className="text-lg font-black text-rose-300">HIGH</span>
+                            <span className={`text-lg font-black ${macroEnv.riskLevel === 'HIGH' ? 'text-rose-300' : macroEnv.riskLevel === 'ELEVATED' ? 'text-amber-300' : 'text-emerald-300'}`}>
+                                {macroEnv.riskLevel}
+                            </span>
                         </div>
                         <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10">
                             <span className="text-[10px] font-bold text-blue-200 uppercase tracking-wider block mb-1">Fed Funds Rate</span>
-                            <span className="text-lg font-black">{MARKET_CONTEXT.macro.fedRates}</span>
+                            <span className="text-lg font-black">{macroEnv.fedRates}</span>
                         </div>
                     </div>
                 </div>
@@ -214,23 +257,25 @@ export default function AIAnalysis() {
 
             <div className="grid grid-cols-1 gap-8">
                 {openOptionTrades.map(trade => (
-                    <AnalysisCard key={trade.id} trade={trade} stockPrice={marketPrices[trade.symbol]} />
+                    <AnalysisCard key={trade.id} trade={trade} stockPrice={marketPrices[trade.symbol]} macroEnv={macroEnv} />
                 ))}
             </div>
         </div>
     );
 }
 
-function AnalysisCard({ trade, stockPrice }: { trade: Trade, stockPrice?: number }) {
+function AnalysisCard({ trade, stockPrice, macroEnv }: { trade: Trade, stockPrice?: number, macroEnv: any }) {
     const daysToExpiry = differenceInDays(parseISO(trade.expirationDate), new Date());
 
-    // Check for earnings proximity (Hallucinated logic based on typical Q1 earnings)
+    // Dynamically check for earnings proximity (Simulating earnings happening mid-quarter)
     const expDate = parseISO(trade.expirationDate);
-    const isNearEarnings = EARNINGS_WINDOWS.some(w => {
-        const earningsDate = new Date(2026, w.month, w.delta);
-        const daysDiff = Math.abs(differenceInDays(expDate, earningsDate));
-        return daysDiff <= 5;
-    });
+    const currentDate = new Date();
+    // Simulate an earnings date 45 days into the current quarter
+    const quarterStartMonth = Math.floor(currentDate.getMonth() / 3) * 3;
+    const simulatedEarningsDate = new Date(currentDate.getFullYear(), quarterStartMonth, 45);
+    
+    const daysDiff = Math.abs(differenceInDays(expDate, simulatedEarningsDate));
+    const isNearEarnings = daysDiff <= 10;
 
     const analyze = () => {
         const isPut = trade.type === 'Put';
@@ -243,7 +288,6 @@ function AnalysisCard({ trade, stockPrice }: { trade: Trade, stockPrice?: number
         let contextTags = ["Theta Decay Positive"];
 
         // 1. Profit Pattern Logic (User Appetite)
-        // High-beta tickers (MARA/RIOT) often see wild swings. History shows user prefers 65-75% profit exits.
         const isHighBeta = ['MARA', 'RIOT', 'BTC', 'COIN'].includes(trade.symbol);
 
         if (isHighBeta) {
@@ -255,15 +299,15 @@ function AnalysisCard({ trade, stockPrice }: { trade: Trade, stockPrice?: number
         if (isNearEarnings) {
             contextTags.push("Earnings Risk");
             action = "Close Before Expiry";
-            rationale = "Position expires near Q1 earnings report. Implied Volatility (IV) crush or binary move risk is elevated. Statistically prudent to exit before the report.";
+            rationale = "Position expires near a simulated earnings window. Implied Volatility (IV) crush or binary move risk is elevated. Statistically prudent to exit before the report.";
             variant = 'warning';
         }
 
-        // 3. Geopolitical / Macro Context
-        if (MARKET_CONTEXT.geopolitics.primary.includes('Middle East')) {
+        // 3. Geopolitical / Macro Context dynamically applied
+        if (macroEnv.riskLevel !== 'LOW') {
             if (isHighBeta && distancePercent < 15) {
                 action = "Tighten Stops / Exit Early";
-                rationale += " Geopolitical tensions in the Middle East are causing safe-haven shifts into USD/Gold, which often pressures risk-assets like BITCOIN mining tickers (MARA/RIOT).";
+                rationale += ` Macro conditions highlight ${macroEnv.geopolitics.primary.toLowerCase()}, which often pressures high-beta assets.`;
                 variant = 'warning';
             }
         }
@@ -280,7 +324,7 @@ function AnalysisCard({ trade, stockPrice }: { trade: Trade, stockPrice?: number
                 variant = 'success';
             } else if (isITM) {
                 action = "Immediate Management (Roll/Close)";
-                rationale = "Position is ITM in the expiration week. Risk of assignment is near 100%. If assignment is not desired, roll to May 2026 immediately.";
+                rationale = "Position is ITM in the expiration week. Risk of assignment is near 100%. If assignment is not desired, roll to the next cycle immediately.";
                 variant = 'danger';
             }
         }
