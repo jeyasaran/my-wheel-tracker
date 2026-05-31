@@ -278,6 +278,7 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             return {
                 weekNumber: format(currentWeekStart, 'w'),
                 year: format(currentWeekStart, 'yyyy'),
+                weekRange: `${format(currentWeekStart, 'd-MMM')} ~ ${format(currentWeekEnd, 'd-MMM')}`,
                 currentWeekPnL,
                 prevWeekPnL,
                 winRate: winRateStats,

@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, List, Settings, Archive, DollarSign, TrendingUp, Palette, Building2, Loader2, Activity, Menu, X, Sparkles, LineChart, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, List, Settings, Archive, DollarSign, TrendingUp, Palette, Building2, Loader2, Activity, Menu, X, Sparkles, LineChart, BarChart2, GitBranch } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTradeStore } from '../hooks/useTradeStore';
 import { useState } from 'react';
@@ -233,7 +233,7 @@ export function SidebarLayout() {
                 </nav>
                 <div className="p-4 border-t border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500">
-                        <Settings className="h-4 w-4" />
+                        <GitBranch className="h-4 w-4" />
                         <span>v{version}</span>
                     </div>
                 </div>

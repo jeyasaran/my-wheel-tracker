@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, Cell, XAxis, YAxis, ReferenceLine, ResponsiveContainer, Tooltip } from 'recharts';
 import type { useDashboardStats } from '../../hooks/useDashboardStats';
 
@@ -15,6 +15,7 @@ export default function WeeklyMetrics({ data, onPrevClick, onNextClick, disableN
     const {
         weekNumber,
         year,
+        weekRange,
         currentWeekPnL,
         prevWeekPnL,
         winRate,
@@ -56,9 +57,9 @@ export default function WeeklyMetrics({ data, onPrevClick, onNextClick, disableN
                     <div className="space-y-6 flex-1">
                         <div className="flex items-center space-x-3">
                             <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                                <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                             </div>
-                            <span className="font-semibold text-gray-500 dark:text-gray-400">This Week</span>
+                            <span className="font-semibold text-gray-500 dark:text-gray-400">{weekRange}</span>
                         </div>
 
                         <div>
