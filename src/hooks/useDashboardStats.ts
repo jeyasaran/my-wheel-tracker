@@ -171,17 +171,17 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             const prevWeekEnd = endOfWeek(subWeeks(now, weekOffset + 1), { weekStartsOn: 1 });
 
             const currentWeekTrades = closedTrades.filter(t =>
-                isWithinInterval(parseISO(t.openDate), { start: currentWeekStart, end: currentWeekEnd })
+                isWithinInterval(parseISO(t.closeDate!), { start: currentWeekStart, end: currentWeekEnd })
             );
             const currentWeekStocks = stockPositions.filter(p =>
-                p.status === 'CLOSED' && p.openDate && isWithinInterval(parseISO(p.openDate), { start: currentWeekStart, end: currentWeekEnd })
+                p.status === 'CLOSED' && p.closeDate && isWithinInterval(parseISO(p.closeDate), { start: currentWeekStart, end: currentWeekEnd })
             );
 
             const prevWeekTrades = closedTrades.filter(t =>
-                isWithinInterval(parseISO(t.openDate), { start: prevWeekStart, end: prevWeekEnd })
+                isWithinInterval(parseISO(t.closeDate!), { start: prevWeekStart, end: prevWeekEnd })
             );
             const prevWeekStocks = stockPositions.filter(p =>
-                p.status === 'CLOSED' && p.openDate && isWithinInterval(parseISO(p.openDate), { start: prevWeekStart, end: prevWeekEnd })
+                p.status === 'CLOSED' && p.closeDate && isWithinInterval(parseISO(p.closeDate), { start: prevWeekStart, end: prevWeekEnd })
             );
 
             const getPnL = (tradeList: typeof trades, stockList: typeof stockPositions) => {
@@ -243,8 +243,8 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
                 date: format(new Date(currentWeekStart.getTime() + (i * 24 * 60 * 60 * 1000)), 'yyyy-MM-dd')
             }));
 
-            currentWeekTrades.forEach(t => {
-                const dayIndex = getDay(parseISO(t.openDate));
+             currentWeekTrades.forEach(t => {
+                const dayIndex = getDay(parseISO(t.closeDate!));
                 const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
                 if (adjustedIndex >= 0 && adjustedIndex < 7) {
                     let pnl = 0;
@@ -261,7 +261,7 @@ export function useDashboardStats(weekOffset: number = 0, monthOffset: number = 
             });
 
             currentWeekStocks.forEach(p => {
-                const dayIndex = getDay(parseISO(p.openDate));
+                const dayIndex = getDay(parseISO(p.closeDate!));
                 const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
                 if (adjustedIndex >= 0 && adjustedIndex < 7) {
                     const pnl = ((p.sellPrice || 0) - p.buyPrice) * p.quantity;
