@@ -138,13 +138,10 @@ export default function NAVTracker() {
         let netGrowthRate: number | null = null;
 
         if (prev) {
-            const prevSum = activeBrokerIds.reduce((s, bid) => s + (prev.brokerNavs[bid] ?? 0), 0);
-            const prevAdj = prevSum + (prev.cashIn - prev.cashOut);
             capitalGrowthAct = sumBrokers;
-            capitalGrowthExp = prevAdj * 1.025;
-            const denominator = prev.adjStart + prev.netCash;
+            capitalGrowthExp = prev.adjStart * 1.025;
+            const denominator = prev.adjStart + netCash;
             netGrowthRate = denominator !== 0 ? (capitalGrowthAct / denominator) - 1 : null;
-
             if (i === 1) {
                 // Row 1 (2nd row): 1.02 * Prev month Adj start
                 cumulativeTargetGrowth = prev.adjStart * 1.02;
