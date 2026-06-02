@@ -142,7 +142,8 @@ export default function NAVTracker() {
             const prevAdj = prevSum + (prev.cashIn - prev.cashOut);
             capitalGrowthAct = sumBrokers;
             capitalGrowthExp = prevAdj * 1.025;
-            netGrowthRate = prevAdj > 0 ? (sumBrokers / prevAdj) - 1 : null;
+            const denominator = prev.adjStart + prev.netCash;
+            netGrowthRate = denominator !== 0 ? (capitalGrowthAct / denominator) - 1 : null;
 
             if (i === 1) {
                 // Row 1 (2nd row): 1.02 * Prev month Adj start
