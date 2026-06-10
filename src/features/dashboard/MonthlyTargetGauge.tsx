@@ -4,25 +4,21 @@ import { useTradeStore } from '../../hooks/useTradeStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Target } from 'lucide-react';
 
-// ── Gauge geometry ──────────────────────────────────────────────────────────
-const CX = 160;
-const CY = 140;         // raised so arc caps don't clip at bottom
-const R  = 100;         // slightly smaller radius for same reason
-const SW = 18;          // stroke width
-const START = 225;      // degrees (clockwise from 12 o'clock)
-const SWEEP = 270;      // total degrees of arc
+// ── Gauge constants ──────────────────────────────────────────────────────────
+const CX   = 160;
+const CY   = 140;
+const R    = 90;
+const SW   = 16;
+const CIRC    = 2 * Math.PI * R;          // full circle circumference
+const ARC_LEN = CIRC * (270 / 360);       // 270° arc
+const GAP_LEN = CIRC - ARC_LEN;           // 90° gap at bottom
+// SVG circles start at 3-o'clock; rotate 135° so arc begins at 7:30 (225° from top)
+const ROT = `rotate(135 ${CX} ${CY})`;
 
-function polar(angleDeg: number) {
-    const rad = (angleDeg - 90) * (Math.PI / 180);
-    return { x: CX + R * Math.cos(rad), y: CY + R * Math.sin(rad) };
-}
-
-function arc(startDeg: number, endDeg: number): string {
-    if (Math.abs(endDeg - startDeg) < 0.01) return '';
-    const s = polar(startDeg);
-    const e = polar(endDeg);
-    const large = endDeg - startDeg > 180 ? 1 : 0;
-    return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+/** Convert an angle (degrees clockwise from top) + radius to SVG xy */
+function pt(degFromTop: number, r: number) {
+    const rad = (degFromTop - 90) * (Math.PI / 180);
+    return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
 }
 
 function gaugeColor(pct: number): string {
@@ -38,17 +34,15 @@ export default function MonthlyTargetGauge() {
 
     const data = useMemo(() => {
         const now = new Date();
-        const prevMonth = subMonths(now, 1);
-        const prevKey = format(prevMonth, 'yyyy-MM');
+        const prevMonth  = subMonths(now, 1);
+        const prevKey    = format(prevMonth, 'yyyy-MM');
 
-        // Previous month total NAV (sum across all brokers)
         const prevNAV = (navEntries || [])
             .filter(e => e.monthYear === prevKey)
             .reduce((s, e) => s + e.navValue, 0);
 
         const target = prevNAV * 0.025;
 
-        // Current month realized P&L
         const monthTrades = trades.filter(
             t => t.status !== 'OPEN' && t.closeDate && isSameMonth(parseISO(t.openDate), now)
         );
@@ -56,43 +50,43 @@ export default function MonthlyTargetGauge() {
             p => p.status === 'CLOSED' && p.openDate && isSameMonth(parseISO(p.openDate), now)
         );
 
-        const earned = monthTrades.reduce((s, t) => {
-            const p = (t.premiumPrice || 0) * t.contracts * 100;
-            const c = (t.closePrice || 0) * t.contracts * 100;
-            return s + (t.strategy === 'Vert' ? p + c : t.side === 'BUY' ? c - p : p - c);
-        }, 0) + monthStocks.reduce((s, p) => s + ((p.sellPrice || 0) - p.buyPrice) * p.quantity, 0);
+        const earned =
+            monthTrades.reduce((s, t) => {
+                const p = (t.premiumPrice || 0) * t.contracts * 100;
+                const c = (t.closePrice  || 0) * t.contracts * 100;
+                return s + (t.strategy === 'Vert' ? p + c : t.side === 'BUY' ? c - p : p - c);
+            }, 0) +
+            monthStocks.reduce((s, p) => s + ((p.sellPrice || 0) - p.buyPrice) * p.quantity, 0);
 
         const pct = target > 0 ? (earned / target) * 100 : 0;
 
         return {
-            earned,
-            target,
-            pct,
-            prevMonthLabel: format(prevMonth, 'MMM yyyy'),
-            currentMonthLabel: format(now, 'MMMM yyyy'),
+            earned, target, pct,
+            prevMonthLabel:    format(prevMonth, 'MMM yyyy'),
+            currentMonthLabel: format(now,       'MMMM yyyy'),
         };
     }, [trades, stockPositions, navEntries]);
 
     const { earned, target, pct, prevMonthLabel, currentMonthLabel } = data;
-    const color = gaugeColor(pct);
-
-    // Visual cap at 120% so needle doesn't overflow
-    const displayPct = Math.min(pct, 120);
-    const progressEnd = START + (displayPct / 100) * SWEEP;
-    const bgPath = arc(START, START + SWEEP);
-    const fgPath = displayPct > 0 ? arc(START, progressEnd) : '';
+    const color       = gaugeColor(pct);
+    const displayPct  = Math.min(pct, 100);       // cap at 100 for fill length
+    const progressLen = ARC_LEN * displayPct / 100;
 
     // Tick marks at 25 / 50 / 75 / 100 %
+    const filledAngle = 225 + (displayPct / 100) * 270;
     const ticks = [25, 50, 75, 100].map(t => {
-        const angle = START + (t / 100) * SWEEP;
-        const inner = { x: CX + (R - SW / 2 - 6) * Math.cos((angle - 90) * Math.PI / 180), y: CY + (R - SW / 2 - 6) * Math.sin((angle - 90) * Math.PI / 180) };
-        const outer = { x: CX + (R + SW / 2 + 6) * Math.cos((angle - 90) * Math.PI / 180), y: CY + (R + SW / 2 + 6) * Math.sin((angle - 90) * Math.PI / 180) };
-        return { inner, outer, label: `${t}%`, angle };
+        const angle = 225 + (t / 100) * 270;
+        return {
+            t,
+            inner: pt(angle, R - SW / 2 - 4),
+            outer: pt(angle, R + SW / 2 + 4),
+            filled: angle <= filledAngle,
+        };
     });
 
-    // Label positions (outside arc)
-    const startLabel = polar(START);
-    const endLabel   = polar(START + SWEEP);
+    // End-point label positions (slightly outside arc)
+    const startPt = pt(225, R + SW / 2 + 10);
+    const endPt   = pt(135, R + SW / 2 + 10);
 
     if (!target) {
         return (
@@ -124,93 +118,88 @@ export default function MonthlyTargetGauge() {
             </CardHeader>
             <CardContent className="pt-2">
                 <div className="flex flex-col items-center">
+
                     {/* SVG Gauge */}
-                    <svg viewBox="0 0 320 215" className="w-full max-w-[280px]">
+                    <svg viewBox="0 0 320 210" className="w-full max-w-[280px]">
                         <defs>
-                            <filter id="mtGlow">
-                                <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor={color} floodOpacity="0.5" />
+                            <filter id="mtGlow" x="-30%" y="-30%" width="160%" height="160%">
+                                <feDropShadow dx="0" dy="0" stdDeviation="5"
+                                    floodColor={color} floodOpacity="0.55" />
                             </filter>
                         </defs>
 
-                        {/* Background track */}
-                        <path
-                            d={bgPath}
+                        {/* ── Background track ── */}
+                        <circle
+                            cx={CX} cy={CY} r={R}
                             fill="none"
-                            stroke="#E5E7EB"
+                            stroke="#374151"
                             strokeWidth={SW}
                             strokeLinecap="round"
-                            className="dark:stroke-gray-700"
-                        />
-                        {/* Invisible wider bg to mask cap overlap */}
-                        <path
-                            d={bgPath}
-                            fill="none"
-                            stroke="transparent"
-                            strokeWidth={SW + 2}
-                            strokeLinecap="butt"
+                            strokeDasharray={`${ARC_LEN} ${GAP_LEN}`}
+                            transform={ROT}
                         />
 
-                        {/* Progress arc */}
-                        {fgPath && (
-                            <path
-                                d={fgPath}
+                        {/* ── Progress arc (same circle, same rotation) ── */}
+                        {progressLen > 0 && (
+                            <circle
+                                cx={CX} cy={CY} r={R}
                                 fill="none"
                                 stroke={color}
                                 strokeWidth={SW}
                                 strokeLinecap="round"
+                                strokeDasharray={`${progressLen} ${CIRC}`}
+                                transform={ROT}
                                 filter="url(#mtGlow)"
                             />
                         )}
 
-                        {/* Tick marks */}
-                        {ticks.map(({ inner, outer, label, angle }) => (
-                            <g key={label}>
-                                <line
-                                    x1={inner.x} y1={inner.y}
-                                    x2={outer.x} y2={outer.y}
-                                    stroke={angle <= progressEnd ? color : '#D1D5DB'}
-                                    strokeWidth={2}
-                                    className={angle > progressEnd ? 'dark:stroke-gray-600' : ''}
-                                />
-                            </g>
+                        {/* ── Tick marks ── */}
+                        {ticks.map(({ t, inner, outer, filled }) => (
+                            <line
+                                key={t}
+                                x1={inner.x} y1={inner.y}
+                                x2={outer.x} y2={outer.y}
+                                stroke={filled ? color : '#4B5563'}
+                                strokeWidth={2}
+                            />
                         ))}
 
-                        {/* $0 label */}
+                        {/* ── $0 label (start of arc) ── */}
                         <text
-                            x={startLabel.x - 16} y={startLabel.y + 14}
-                            textAnchor="middle" fontSize="11" fill="#9CA3AF" fontFamily="inherit"
+                            x={startPt.x} y={startPt.y}
+                            textAnchor="middle" fontSize="10" fill="#6B7280" fontFamily="inherit"
                         >$0</text>
 
-                        {/* Target label */}
+                        {/* ── Target label (end of arc) ── */}
                         <text
-                            x={endLabel.x + 16} y={endLabel.y + 14}
-                            textAnchor="middle" fontSize="11" fill="#9CA3AF" fontFamily="inherit"
+                            x={endPt.x} y={endPt.y}
+                            textAnchor="middle" fontSize="10" fill="#6B7280" fontFamily="inherit"
                         >
                             ${target >= 1000 ? `${(target / 1000).toFixed(1)}k` : target.toFixed(0)}
                         </text>
 
-                        {/* Center: big percentage */}
+                        {/* ── Centre: big percentage ── */}
                         <text
-                            x={CX} y={CY - 10}
+                            x={CX} y={CY - 8}
                             textAnchor="middle" dominantBaseline="middle"
                             fontSize="44" fontWeight="800" fill={color} fontFamily="inherit"
                         >
                             {Math.round(pct)}%
                         </text>
 
-                        {/* Sub-label */}
+                        {/* ── Sub-label ── */}
                         <text
-                            x={CX} y={CY + 28}
+                            x={CX} y={CY + 30}
                             textAnchor="middle" dominantBaseline="middle"
                             fontSize="12" fill="#9CA3AF" fontFamily="inherit"
                         >
                             of monthly target
                         </text>
 
-                        {/* Status badge */}
+                        {/* ── Target-achieved badge ── */}
                         {pct >= 100 && (
                             <text
-                                x={CX} y={CY + 50}
+                                x={CX} y={CY + 52}
                                 textAnchor="middle" dominantBaseline="middle"
                                 fontSize="13" fontWeight="600" fill="#10B981" fontFamily="inherit"
                             >
@@ -248,6 +237,7 @@ export default function MonthlyTargetGauge() {
                             />
                         </div>
                     </div>
+
                 </div>
             </CardContent>
         </Card>
