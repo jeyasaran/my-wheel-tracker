@@ -6,9 +6,9 @@ import { Target } from 'lucide-react';
 
 // ── Gauge geometry ──────────────────────────────────────────────────────────
 const CX = 160;
-const CY = 150;
-const R = 108;
-const SW = 20;          // stroke width
+const CY = 140;         // raised so arc caps don't clip at bottom
+const R  = 100;         // slightly smaller radius for same reason
+const SW = 18;          // stroke width
 const START = 225;      // degrees (clockwise from 12 o'clock)
 const SWEEP = 270;      // total degrees of arc
 
@@ -125,7 +125,7 @@ export default function MonthlyTargetGauge() {
             <CardContent className="pt-2">
                 <div className="flex flex-col items-center">
                     {/* SVG Gauge */}
-                    <svg viewBox="0 0 320 230" className="w-full max-w-[280px]">
+                    <svg viewBox="0 0 320 215" className="w-full max-w-[280px]">
                         <defs>
                             <filter id="mtGlow">
                                 <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor={color} floodOpacity="0.5" />
@@ -140,6 +140,14 @@ export default function MonthlyTargetGauge() {
                             strokeWidth={SW}
                             strokeLinecap="round"
                             className="dark:stroke-gray-700"
+                        />
+                        {/* Invisible wider bg to mask cap overlap */}
+                        <path
+                            d={bgPath}
+                            fill="none"
+                            stroke="transparent"
+                            strokeWidth={SW + 2}
+                            strokeLinecap="butt"
                         />
 
                         {/* Progress arc */}
@@ -183,16 +191,16 @@ export default function MonthlyTargetGauge() {
 
                         {/* Center: big percentage */}
                         <text
-                            x={CX} y={CY - 14}
+                            x={CX} y={CY - 10}
                             textAnchor="middle" dominantBaseline="middle"
-                            fontSize="46" fontWeight="800" fill={color} fontFamily="inherit"
+                            fontSize="44" fontWeight="800" fill={color} fontFamily="inherit"
                         >
                             {Math.round(pct)}%
                         </text>
 
                         {/* Sub-label */}
                         <text
-                            x={CX} y={CY + 26}
+                            x={CX} y={CY + 28}
                             textAnchor="middle" dominantBaseline="middle"
                             fontSize="12" fill="#9CA3AF" fontFamily="inherit"
                         >
@@ -202,7 +210,7 @@ export default function MonthlyTargetGauge() {
                         {/* Status badge */}
                         {pct >= 100 && (
                             <text
-                                x={CX} y={CY + 48}
+                                x={CX} y={CY + 50}
                                 textAnchor="middle" dominantBaseline="middle"
                                 fontSize="13" fontWeight="600" fill="#10B981" fontFamily="inherit"
                             >
