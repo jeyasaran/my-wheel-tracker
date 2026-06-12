@@ -29,7 +29,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                     {payload.map((entry: any, index: number) => {
                         const isUser = entry.dataKey === 'userReturns';
                         const color = isUser ? '#00bfff' : '#f97316';
-                        const name = isUser ? 'Portfolio' : 'S&P 500';
+                        const name = isUser ? 'Portfolio' : (entry.name || 'Benchmark');
                         return (
                             <div key={index} className="flex items-center justify-between gap-6">
                                 <div className="flex items-center gap-2">
@@ -71,7 +71,15 @@ interface SpyDataPoint {
 export default function Metrics() {
     const { trades, stockPositions, cashBalance } = useTradeStore();
     const [timeRange, setTimeRange] = useState<TimeRange>('ytd');
+    const [benchmark, setBenchmark] = useState<string>('SPY');
     const [spyData, setSpyData] = useState<SpyDataPoint[]>([]);
+
+    const BENCHMARK_LABELS: Record<string, string> = {
+        'SPY': 'S&P 500',
+        '^DJI': '.DJI',
+        '^IXIC': 'Nasdaq (.IXIC)',
+    };
+    const benchmarkLabel = BENCHMARK_LABELS[benchmark] || 'Benchmark';
 
     useEffect(() => {
         const now = new Date();
@@ -86,11 +94,11 @@ export default function Metrics() {
         const period1 = getUnixTime(startDate);
         const period2 = getUnixTime(now);
 
-        fetch(`./api/spy-history?period1=${period1}&period2=${period2}`)
+        fetch(`./api/spy-history?period1=${period1}&period2=${period2}&symbol=${benchmark}`)
             .then(r => r.json())
             .then(data => { if (Array.isArray(data)) setSpyData(data); else setSpyData([]); })
             .catch(() => setSpyData([]));
-    }, [timeRange]);
+    }, [timeRange, benchmark]);
 
     const spyMap = useMemo(() => {
         const map = new Map<string, number>();
@@ -295,8 +303,14 @@ export default function Metrics() {
                         <div className="flex items-center gap-1.5">
                             <div className="w-2.5 h-0.5 bg-[#f97316] flex-shrink-0"></div>
                             <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-md px-2 py-0.5">
-                                <select className="bg-transparent text-[12px] text-gray-600 dark:text-gray-300 outline-none appearance-none cursor-pointer pr-3">
-                                    <option>S&P 500</option>
+                                <select 
+                                    value={benchmark}
+                                    onChange={(e) => setBenchmark(e.target.value)}
+                                    className="bg-transparent text-[12px] text-gray-600 dark:text-gray-300 outline-none appearance-none cursor-pointer pr-3"
+                                >
+                                    <option value="SPY" className="dark:bg-[#111318]">S&P 500</option>
+                                    <option value="^DJI" className="dark:bg-[#111318]">.DJI</option>
+                                    <option value="^IXIC" className="dark:bg-[#111318]">Nasdaq (.IXIC)</option>
                                 </select>
                                 <ChevronDown className="w-3 h-3 -ml-2 pointer-events-none text-gray-400 flex-shrink-0" />
                             </div>
@@ -347,6 +361,7 @@ export default function Metrics() {
                                 cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '4 4' }}
                             />
                             <Area
+                                name={benchmarkLabel}
                                 type="linear"
                                 dataKey="spyReturns"
                                 stroke="#f97316"
@@ -362,6 +377,7 @@ export default function Metrics() {
                                 }}
                             />
                             <Area
+                                name="Portfolio"
                                 type="linear"
                                 dataKey="userReturns"
                                 stroke="#00bfff"

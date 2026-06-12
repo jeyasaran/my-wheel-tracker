@@ -262,12 +262,12 @@ app.get('/api/stock-history', async (req, res) => {
 });
 
 app.get('/api/spy-history', async (req, res) => {
-    const { period1, period2 } = req.query;
+    const { period1, period2, symbol = 'SPY' } = req.query;
     if (!period1 || !period2) {
         return res.status(400).json({ error: 'period1 and period2 are required' });
     }
     try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=1d&period1=${period1}&period2=${period2}`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`;
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0',
